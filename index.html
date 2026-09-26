@@ -797,13 +797,20 @@
           Make sure your FreshGuard chamber is powered on and in pairing mode.
         </div>
         <div style="display:inline-block; font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-glow); padding:4px 10px; border-radius:12px; margin-bottom:20px;">
-          BLE Name: FreshGuard-Vault-ESP32
+          Broadcast: FreshGuard (Vault ESP32)
         </div>
-        <div>
-          <button class="btn btn-primary" id="btn-ble-connect" onclick="startBleConnect()">
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <button class="btn btn-primary" id="btn-ble-connect" onclick="startBleConnect(false)">
             <span class="material-symbols-outlined" style="font-size:20px;">bluetooth</span>
             Connect Chamber
           </button>
+          <button class="btn btn-secondary" onclick="startBleConnect(true)" style="font-size:13px; padding:12px;">
+            <span class="material-symbols-outlined" style="font-size:16px;">search</span>
+            Show All Nearby Devices (Fallback)
+          </button>
+        </div>
+        <div id="https-warning" style="margin-top:14px; font-size:11px; color:var(--amber); background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2); border-radius:10px; padding:10px 12px; text-align:left; line-height:1.4;">
+          💡 <strong>Tip for Phones:</strong> Web Bluetooth requires a Secure Context (<strong>HTTPS</strong> or localhost). If scanning from your phone, open your GitHub Pages URL or Chrome on Android/PC.
         </div>
       </div>
     </div>
@@ -811,9 +818,12 @@
     <!-- Stage 2: Account & WiFi Setup (hidden initially) -->
     <div id="setup-stage-2" style="display:none;">
       <div class="card" style="display:flex; flex-direction:column; gap:14px;">
-        <div style="font-size:16px; font-weight:700;">Account & Network Link</div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div style="font-size:16px; font-weight:700;">Account & Network Link</div>
+          <span class="sensor-badge badge-ok" id="ble-conn-badge">Bluetooth Ready</span>
+        </div>
         <div style="font-size:12px; color:var(--text-muted); line-height:1.4;">
-          Your chamber will be bound to your account and reconnect automatically after power outages.
+          Your chamber will receive these WiFi credentials over Bluetooth and bind to your account.
         </div>
 
         <div>
@@ -1042,66 +1052,103 @@
     const BLE_STATUS_UUID  = '1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e';
 
     // ── Setup / Pairing ──
-    async function startBleConnect() {
+    async function startBleConnect(broadScan = false) {
       const btn = document.getElementById('btn-ble-connect');
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `
-          <span class="material-symbols-outlined" style="font-size:20px; animation: spin 1s linear infinite;">sync</span>
-          Pairing over Bluetooth...
-        `;
+        btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:20px; animation: spin 1s linear infinite;">sync</span> Scanning for FreshGuard...`;
       }
 
-      if (navigator.bluetooth && window.isSecureContext) {
-        try {
-          showToast('Scanning for FreshGuard Bluetooth...');
-          bleDevice = await navigator.bluetooth.requestDevice({
-            filters: [{ namePrefix: 'FreshGuard' }],
-            optionalServices: [BLE_SERVICE_UUID]
-          });
-
-          showToast('Connecting to ' + (bleDevice.name || 'FreshGuard-Vault-ESP32') + '...');
-          bleServer = await bleDevice.gatt.connect();
-          const service = await bleServer.getPrimaryService(BLE_SERVICE_UUID);
-
-          // Get characteristics
-          bleConfigChar = await service.getCharacteristic(BLE_CONFIG_UUID);
-          bleStatusChar = await service.getCharacteristic(BLE_STATUS_UUID);
-
-          // Listen for status notifications from ESP32
-          await bleStatusChar.startNotifications();
-          bleStatusChar.addEventListener('characteristicvaluechanged', (e) => {
-            const val = new TextDecoder().decode(e.target.value);
-            console.log('[ESP32 BLE Notification]', val);
-            handleBleStatusNotification(val);
-          });
-
-          bleDeviceConnected = true;
-          showToast('Bluetooth connected! Enter WiFi & Account details.');
-        } catch (err) {
-          console.warn('Bluetooth pairing note:', err);
-          showToast(err.name === 'NotFoundError' ? 'Pairing window closed. Proceeding to entry.' : 'Bluetooth ready (Direct mode).');
-          bleDeviceConnected = true;
-        }
-      } else {
-        showToast('Web Bluetooth not available in this browser. Using Direct WiFi mode.');
-        bleDeviceConnected = true;
-      }
-
-      setTimeout(() => {
-        // Update step indicators
-        const s1num = document.querySelector('#setup-step-1 .step-number');
-        const s2num = document.querySelector('#setup-step-2 .step-number');
-        if (s1num) { s1num.classList.remove('active'); s1num.classList.add('done'); s1num.textContent = '✓'; }
-        if (s2num) s2num.classList.add('active');
-
-        document.getElementById('setup-stage-1').style.display = 'none';
-        document.getElementById('setup-stage-2').style.display = 'block';
+      if (!navigator.bluetooth) {
+        alert("Web Bluetooth is not supported on this browser or platform.\n\n• On Android/Windows/Mac: Please use Google Chrome, Edge, or Opera.\n• Note: Apple iOS Safari does not support Web Bluetooth.\n• Web Bluetooth requires a Secure Context (HTTPS or localhost).");
+        showToast("Web Bluetooth not available in this browser", true);
         if (btn) {
           btn.disabled = false;
           btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:20px;">bluetooth</span> Connect Chamber`;
         }
-      }, 700);
+        return;
+      }
+
+      if (!window.isSecureContext) {
+        alert("Web Bluetooth requires HTTPS or localhost!\n\nPlease open this webapp on HTTPS (e.g. your GitHub Pages URL: https://mshiva5626.github.io/FreshTag-ethylene-trap-box-/) to enable Bluetooth pairing.");
+        showToast("Web Bluetooth requires HTTPS", true);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:20px;">bluetooth</span> Connect Chamber`;
+        }
+        return;
+      }
+
+      try {
+        let requestOptions;
+        if (broadScan) {
+          // Broad scan: shows all nearby Bluetooth devices so user sees FreshGuard
+          requestOptions = {
+            acceptAllDevices: true,
+            optionalServices: [BLE_SERVICE_UUID]
+          };
+        } else {
+          // Targeted scan: matches 'FreshGuard' name or prefix
+          requestOptions = {
+            filters: [
+              { namePrefix: 'FreshGuard' },
+              { name: 'FreshGuard' },
+              { name: 'FreshGuard-Vault-ESP32' }
+            ],
+            optionalServices: [BLE_SERVICE_UUID]
+          };
+        }
+
+        showToast(broadScan ? "Showing all nearby devices..." : "Scanning for FreshGuard...");
+        bleDevice = await navigator.bluetooth.requestDevice(requestOptions);
+
+        showToast("Connecting to " + (bleDevice.name || "FreshGuard") + "...");
+        bleServer = await bleDevice.gatt.connect();
+        const service = await bleServer.getPrimaryService(BLE_SERVICE_UUID);
+
+        bleConfigChar = await service.getCharacteristic(BLE_CONFIG_UUID);
+        bleStatusChar = await service.getCharacteristic(BLE_STATUS_UUID);
+
+        await bleStatusChar.startNotifications();
+        bleStatusChar.addEventListener('characteristicvaluechanged', (e) => {
+          const val = new TextDecoder().decode(e.target.value);
+          console.log('[ESP32 BLE Notification]', val);
+          handleBleStatusNotification(val);
+        });
+
+        bleDeviceConnected = true;
+        showToast("Bluetooth Connected! Now enter your WiFi details.");
+
+        // Transition to Stage 2 only when Bluetooth is actually connected
+        setTimeout(() => {
+          const s1num = document.querySelector('#setup-step-1 .step-number');
+          const s2num = document.querySelector('#setup-step-2 .step-number');
+          if (s1num) { s1num.classList.remove('active'); s1num.classList.add('done'); s1num.textContent = '✓'; }
+          if (s2num) s2num.classList.add('active');
+
+          document.getElementById('setup-stage-1').style.display = 'none';
+          document.getElementById('setup-stage-2').style.display = 'block';
+          
+          const bleStatusBadge = document.getElementById('ble-conn-badge');
+          if (bleStatusBadge) {
+            bleStatusBadge.textContent = "Connected (" + (bleDevice.name || "FreshGuard") + ")";
+            bleStatusBadge.className = "sensor-badge badge-ok";
+          }
+        }, 500);
+
+      } catch (err) {
+        console.warn("Bluetooth pairing notice:", err);
+        if (err.name === 'NotFoundError') {
+          showToast("No device selected or scan cancelled.", true);
+        } else {
+          showToast("Bluetooth: " + (err.message || "Failed to connect"), true);
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:20px;">bluetooth</span> Connect Chamber`;
+        }
+      }
     }
 
     function handleBleStatusNotification(msg) {
@@ -1129,42 +1176,72 @@
     }
 
     async function submitWifi() {
-      const ssid = (document.getElementById('wifi-ssid').value || '').trim() || 'Home_WiFi';
+      const ssid = (document.getElementById('wifi-ssid').value || '').trim();
       const pass = document.getElementById('wifi-pass').value;
       const account = (document.getElementById('setup-account-id').value || '').trim() || 'mshiva5626';
       boundAccount = account;
 
+      if (!ssid) {
+        alert("Please enter your WiFi Network (SSID) name.");
+        return;
+      }
+
       const submitBtn = document.getElementById('btn-submit-wifi');
       if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px; animation: spin 1s linear infinite;">sync</span> Linking to Account...`;
+        submitBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px; animation: spin 1s linear infinite;">sync</span> Transmitting to ESP32...`;
       }
 
-      const payload = {
+      // Check if Bluetooth is connected
+      if (!bleConfigChar) {
+        alert("⚠️ Bluetooth is not connected to your FreshGuard box!\n\nPlease click 'Back to Step 1' or 'Connect Chamber' so your phone/browser can communicate directly with the ESP32.");
+        showToast("Bluetooth is not connected. Pair in Step 1 first.", true);
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px;">cloud_sync</span> Save & Connect Chamber`;
+        }
+        return;
+      }
+
+      const payload = JSON.stringify({
         ssid: ssid,
         password: pass,
-        account_id: account,
-        device_id: 'SF-001',
-        server: window.location.origin + '/api/telemetry'
-      };
+        account_id: account
+      });
+      console.log("[BLE Write] Transmitting WiFi credentials:", payload);
 
-      // 1. Send via Bluetooth GATT if connected
-      if (bleConfigChar) {
+      try {
+        const encoder = new TextEncoder();
+        const encoded = encoder.encode(payload);
+        if (bleConfigChar.writeValueWithResponse) {
+          await bleConfigChar.writeValueWithResponse(encoded);
+        } else {
+          await bleConfigChar.writeValue(encoded);
+        }
+        showToast("WiFi details sent to ESP32! Connecting...");
+      } catch (writeErr) {
+        console.error("BLE Write error:", writeErr);
+        // Fallback: try writeValue
         try {
           const encoder = new TextEncoder();
-          await bleConfigChar.writeValue(encoder.encode(JSON.stringify(payload)));
-          showToast('Credentials sent to ESP32 over Bluetooth!');
-        } catch (bleErr) {
-          console.warn('BLE GATT write error:', bleErr);
+          await bleConfigChar.writeValue(encoder.encode(payload));
+          showToast("Credentials transmitted to ESP32!");
+        } catch (retryErr) {
+          showToast("Failed to write to ESP32: " + retryErr.message, true);
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px;">cloud_sync</span> Save & Connect Chamber`;
+          }
+          return;
         }
       }
 
-      // 2. Also send to local backend endpoint
+      // Also notify backend server
       try {
         await fetch('/api/pair', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: payload
         });
       } catch (e) {}
 
@@ -1183,12 +1260,12 @@
         const devAcc = document.getElementById('device-account-val');
         if (devAcc) devAcc.textContent = account;
 
-        showToast(`Chamber linked to account ${account}!`);
+        showToast(`WiFi credentials sent! Linked to ${account}`);
         if (submitBtn) {
           submitBtn.disabled = false;
           submitBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px;">cloud_sync</span> Save & Connect Chamber`;
         }
-      }, 700);
+      }, 1000);
     }
 
     // ── Delete / Unpair Chamber from App ──

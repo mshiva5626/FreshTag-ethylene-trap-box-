@@ -185,8 +185,8 @@ class FreshGuardBLEServerCallbacks : public BLEServerCallbacks {
   void onDisconnect(BLEServer* pServer) {
     bleClientConnected = false;
     Serial.println("[BLE] Client disconnected. Restarting BLE advertising in pairing mode.");
-    delay(50);
-    pServer->getAdvertising()->start();
+    delay(100);
+    BLEDevice::startAdvertising();
   }
 };
 
@@ -194,8 +194,7 @@ class FreshGuardConfigCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic* pCharacteristic) {
     String value = pCharacteristic->getValue().c_str();
     if (value.length() > 0) {
-      Serial.print("[BLE] Received configuration packet: ");
-      Serial.println(value);
+      Serial.printf("\n[BLE Config Write Received] (%d bytes): %s\n", value.length(), value.c_str());
       processWiFiConfig(value);
     }
   }
@@ -215,7 +214,8 @@ void sendStatusBLE(String statusMsg) {
 
 void initBLE() {
   Serial.println("[BLE] Initializing Bluetooth Low Energy subsystem...");
-  BLEDevice::init(BLE_DEVICE_NAME);
+  BLEDevice::init("FreshGuard");
+  BLEDevice::setMTU(517); // Set MTU to 517 to avoid JSON truncation
 
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new FreshGuardBLEServerCallbacks());
@@ -231,23 +231,35 @@ void initBLE() {
   pStatusChar->addDescriptor(new BLE2902());
   pStatusChar->setValue("STATUS:BOOT_INITIALIZING");
 
-  // WiFi Configuration characteristic (Write)
+  // WiFi Configuration characteristic (Write & Write Without Response)
   pConfigChar = pService->createCharacteristic(
     CHAR_WIFI_CONFIG_UUID,
-    BLECharacteristic::PROPERTY_WRITE
+    BLECharacteristic::PROPERTY_WRITE |
+    BLECharacteristic::PROPERTY_WRITE_NR
   );
   pConfigChar->setCallbacks(new FreshGuardConfigCallbacks());
 
   pService->start();
 
+  // Primary Advertisement Data: Flags + Short Name ("FreshGuard") -> Fits in 31-byte limit!
+  BLEAdvertisementData advData;
+  advData.setFlags(0x06); // General Discoverable + BR/EDR Not Supported
+  advData.setName("FreshGuard");
+
+  // Scan Response Data: 128-bit Service UUID + Full Name -> Fits in 31-byte limit!
+  BLEAdvertisementData scanData;
+  scanData.setCompleteServices(BLEUUID(SERVICE_UUID));
+  scanData.setName("FreshGuard-Vault-ESP32");
+
   BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setAdvertisementData(advData);
+  pAdvertising->setScanResponseData(scanData);
   pAdvertising->setScanResponse(true);
-  pAdvertising->setMinPreferred(0x06); // 7.5ms iPhone compatibility
+  pAdvertising->setMinPreferred(0x06); // 7.5ms
   pAdvertising->setMinPreferred(0x12); // 22.5ms
   BLEDevice::startAdvertising();
 
-  Serial.println("[BLE] Advertising started. Discoverable as: " BLE_DEVICE_NAME);
+  Serial.println("[BLE] Advertising started. Broadcast Name: 'FreshGuard' (Vault ESP32)");
 }
 
 // ======================== FACTORY UNPAIR & BLE RESET =================
