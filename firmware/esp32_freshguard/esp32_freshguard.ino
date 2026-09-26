@@ -120,6 +120,11 @@ bool humidifierState         = false;
 bool blueLedState            = false;
 bool whiteLedState           = false;
 
+// Pairing Mode Visual Indicator (Flashing Blue LED on GPIO 18)
+bool isPairingMode                  = true;
+unsigned long lastPairingBlink      = 0;
+const unsigned long PAIRING_BLINK_MS = 350; // 350ms rhythmic flash during pairing mode
+
 // Configurable Thresholds
 float tempMinThreshold       = 1.0;
 float tempMaxThreshold       = 4.0;
@@ -278,6 +283,10 @@ void unpairAndResetToBLE() {
   delay(150);
   WiFi.mode(WIFI_STA);
 
+  // Activate pairing mode blue light flashing
+  isPairingMode = true;
+  lastPairingBlink = millis();
+
   // Notify connected BLE client
   sendStatusBLE("STATUS:UNPAIRED:READY_FOR_NEW_USER");
 
@@ -285,7 +294,7 @@ void unpairAndResetToBLE() {
   Serial.println("[BLE] Restarting BLE advertising in pairing mode...");
   BLEDevice::startAdvertising();
 
-  Serial.println("[STATUS] >>> Chamber successfully unpaired! Ready to be claimed by a new owner. <<<");
+  Serial.println("[STATUS] >>> Chamber successfully unpaired! Blue LED flashing for pairing. <<<");
 }
 
 // ======================== NVS CONFIG PROCESSING ======================
@@ -341,8 +350,12 @@ void processWiFiConfig(String jsonPayload) {
   // Attempt connection
   bool success = connectToWiFi(newSsid.c_str(), newPass.c_str());
   if (success) {
+    isPairingMode = false;
+    blueLedState = false;
+    setRelay(RELAY_BLUE_LED, false); // Turn off pairing flash upon successful connection
     sendStatusBLE("STATUS:CONNECTED:" + WiFi.localIP().toString() + ":ACCOUNT:" + accountId);
   } else {
+    isPairingMode = true; // Keep flashing blue LED if connection failed
     sendStatusBLE("STATUS:WIFI_FAILED:ACCOUNT:" + accountId);
   }
 }
@@ -440,12 +453,19 @@ void setup() {
                   savedSsid.c_str(), accountId.c_str());
     bool ok = connectToWiFi(savedSsid.c_str(), savedPass.c_str());
     if (ok) {
+      isPairingMode = false;
+      blueLedState = false;
+      setRelay(RELAY_BLUE_LED, false);
       sendStatusBLE("STATUS:AUTO_RECONNECTED:" + WiFi.localIP().toString() + ":ACCOUNT:" + accountId);
     } else {
+      isPairingMode = true; // Flashes blue LED while offline / awaiting pairing
+      lastPairingBlink = millis();
       sendStatusBLE("STATUS:SAVED_WIFI_UNAVAILABLE:ACCOUNT:" + accountId);
     }
   } else {
-    Serial.printf("\n[Provisioning] No WiFi configured. Waiting for Bluetooth pairing for Account '%s'...\n", accountId.c_str());
+    isPairingMode = true; // Flashes blue LED while in BLE pairing mode
+    lastPairingBlink = millis();
+    Serial.printf("\n[Provisioning] No WiFi configured. Blue LED flashing for Bluetooth pairing (Account '%s')...\n", accountId.c_str());
     sendStatusBLE("STATUS:WAITING_BLE_PROVISION:ACCOUNT:" + accountId);
   }
 
@@ -462,6 +482,15 @@ void setup() {
 
 // ======================== MAIN LOOP ==================================
 void loop() {
+  // 0. Blue LED Pairing Mode Flashing (GPIO 18 visual indicator)
+  if (isPairingMode) {
+    if (millis() - lastPairingBlink >= PAIRING_BLINK_MS) {
+      lastPairingBlink = millis();
+      blueLedState = !blueLedState;
+      setRelay(RELAY_BLUE_LED, blueLedState);
+    }
+  }
+
   // 1. Handle incoming HTTP client requests if WiFi is online
   if (WiFi.status() == WL_CONNECTED) {
     localServer.handleClient();
@@ -804,6 +833,7 @@ void setupLocalHttpServer() {
         setRelay(RELAY_WHITE_LED, whiteLedState);
       }
       if (doc.containsKey("blue_led")) {
+        isPairingMode = false;
         blueLedState = (doc["blue_led"] == "ON" || doc["blue_led"] == true);
         setRelay(RELAY_BLUE_LED, blueLedState);
       }
