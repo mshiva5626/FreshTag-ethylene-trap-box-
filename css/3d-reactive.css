@@ -1,0 +1,556 @@
+/* ==========================================================================
+   Smart FreshGuard — 3D Reactive Layer
+   GPU-accelerated 3D depth, hover tilt, parallax, spring physics
+   Works on top of existing design system — zero regressions
+   ========================================================================== */
+
+/* ─── GPU Composition Layer Setup ────────────────────────────────────────── */
+.hero-section,
+.hero-chamber-img-wrap,
+.metric-card,
+.actuator-card,
+.glass-panel,
+.panel-card,
+.chamber-section-wrapper,
+.preset-chip,
+.chamber-canvas-box,
+.modal,
+.state-banner-container {
+  will-change: transform;
+  transform-style: preserve-3d;
+}
+
+/* ─── Hero 3D Tilt Stage ─────────────────────────────────────────────────── */
+.hero-section {
+  perspective: 1800px;
+  transform-origin: center center;
+  transition: box-shadow 0.4s ease;
+}
+
+/* Tilt is applied via JS — add smooth spring ease */
+.hero-chamber-img-wrap {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s ease;
+  transform-origin: center center;
+  backface-visibility: hidden;
+}
+
+.hero-chamber-img-wrap:hover {
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.6),
+    0 0 40px rgba(16, 185, 129, 0.2);
+}
+
+/* ─── Metric Cards — 3D Lift on Hover ───────────────────────────────────── */
+.metric-card {
+  perspective: 800px;
+  transition:
+    transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.28s ease,
+    border-color 0.2s ease;
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.06) 0%,
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.metric-card:hover {
+  transform: translateY(-6px) rotateX(3deg) scale(1.02);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.45),
+    0 0 30px rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  z-index: 2;
+}
+
+.metric-card:hover::after { opacity: 1; }
+
+/* Card alert states — 3D glow variants */
+.metric-card.alert-warning:hover {
+  box-shadow: 0 20px 50px rgba(0,0,0,0.4), 0 0 30px rgba(245,158,11,0.2);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.metric-card.alert-danger:hover {
+  box-shadow: 0 20px 50px rgba(0,0,0,0.4), 0 0 30px rgba(239,68,68,0.25);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* ─── Glass Panels — 3D Float ────────────────────────────────────────────── */
+.glass-panel,
+.panel-card {
+  transition:
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.3s ease,
+    border-color 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shimmer reflection line */
+.glass-panel::before,
+.panel-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255,255,255,0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.glass-panel:hover::before,
+.panel-card:hover::before {
+  left: 150%;
+}
+
+.glass-panel:hover,
+.panel-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.4),
+    0 0 25px rgba(16, 185, 129, 0.08),
+    inset 0 1px 0 rgba(255,255,255,0.07);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+/* ─── Actuator Cards — Spring 3D Toggle ─────────────────────────────────── */
+.actuator-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s ease,
+    border-color 0.2s ease,
+    background 0.3s ease;
+}
+
+.actuator-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(16,185,129,0), transparent);
+  transition: background 0.3s ease;
+}
+
+.actuator-card.active::before {
+  background: linear-gradient(90deg, transparent, #10B981, transparent);
+  box-shadow: 0 0 10px rgba(16,185,129,0.5);
+}
+
+.actuator-card:hover {
+  transform: translateY(-5px) rotateX(4deg);
+  box-shadow:
+    0 18px 40px rgba(0,0,0,0.45),
+    0 0 20px rgba(16,185,129,0.1);
+  border-color: rgba(16,185,129,0.3);
+  z-index: 2;
+}
+
+.actuator-card.active:hover {
+  box-shadow:
+    0 18px 40px rgba(0,0,0,0.45),
+    0 0 28px rgba(16,185,129,0.22);
+}
+
+/* Toggle switch 3D press */
+.switch-toggle input:checked + .slider {
+  box-shadow:
+    0 0 0 2px rgba(16, 185, 129, 0.4),
+    0 0 16px rgba(16, 185, 129, 0.3);
+}
+
+/* ─── Preset Chips — 3D Bounce ───────────────────────────────────────────── */
+.preset-chip {
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.25s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.preset-chip:hover {
+  transform: translateY(-4px) scale(1.04);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+
+.preset-chip.active {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.35),
+    0 0 20px rgba(16,185,129,0.22);
+}
+
+/* ─── State Banner — Reactive Depth ──────────────────────────────────────── */
+.state-banner-container {
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.4s ease,
+    border-color 0.3s ease,
+    background 0.3s ease;
+}
+
+.state-banner-container.state-door-open {
+  transform: translateY(-2px);
+  animation: alertShake 0.5s ease, borderAlertGlow 1.8s infinite alternate;
+}
+
+@keyframes alertShake {
+  0%,100% { transform: translateX(0) translateY(-2px); }
+  20%      { transform: translateX(-6px) translateY(-2px); }
+  40%      { transform: translateX(6px) translateY(-2px); }
+  60%      { transform: translateX(-4px) translateY(-2px); }
+  80%      { transform: translateX(4px) translateY(-2px); }
+}
+
+@keyframes borderAlertGlow {
+  0%   { box-shadow: 0 4px 30px rgba(239,68,68,0.25); }
+  100% { box-shadow: 0 4px 40px rgba(239,68,68,0.5), 0 0 60px rgba(239,68,68,0.12); }
+}
+
+/* ─── Chamber Physics Twin — Advanced 3D ────────────────────────────────── */
+.chamber-canvas-box {
+  perspective: 1200px;
+  perspective-origin: 50% 40%;
+  transition: box-shadow 0.4s ease;
+}
+
+.chamber-canvas-box:hover {
+  box-shadow:
+    inset 0 0 60px rgba(0,0,0,0.7),
+    0 0 40px rgba(16,185,129,0.1);
+}
+
+.chamber-outer-casing {
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Door 3D Swing — Y-axis hinge at left edge */
+.chamber-door-panel {
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  backface-visibility: hidden;
+}
+
+.chamber-door-panel.door-open {
+  transform: perspective(800px) rotateY(-78deg);
+  box-shadow: -8px 0 30px rgba(0,0,0,0.5);
+}
+
+/* Door glass inner face depth */
+.door-glass-pane {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+
+.door-glass-pane::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    rgba(255,255,255,0.12) 0%,
+    transparent 50%,
+    rgba(255,255,255,0.04) 100%
+  );
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Fan Spinner — Kinetic 3D rotation */
+.fan-spinner {
+  transform-style: preserve-3d;
+  animation: fanSpin 0.8s linear infinite;
+  transform-origin: center center;
+  backface-visibility: hidden;
+}
+
+.fan-spinner.stopped {
+  animation-play-state: paused;
+}
+
+@keyframes fanSpin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Airflow stream — animated dash sweep */
+.airflow-stream {
+  transition: opacity 0.3s ease;
+}
+
+/* Mist particles — 3D float drift */
+.mist-particle {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+/* IR Beam — pulsing laser */
+.ir-beam-core {
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ir-beam-core.beam-broken {
+  background: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 12px rgba(239,68,68,0.6);
+}
+
+/* ─── Hero Float Badges — Parallax Depth ────────────────────────────────── */
+.hero-float-badge {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+  backface-visibility: hidden;
+}
+
+.hero-float-badge:hover {
+  transform: translateY(-4px) scale(1.06) !important;
+  box-shadow:
+    0 12px 32px rgba(0,0,0,0.45),
+    0 0 16px rgba(16,185,129,0.2);
+  z-index: 5;
+}
+
+/* ─── Nav Buttons — Micro 3D Press ──────────────────────────────────────── */
+.nav-btn,
+.hero-btn-primary,
+.hero-btn-secondary,
+.sim-btn {
+  transition:
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.15s ease,
+    background 0.2s ease,
+    border-color 0.15s ease;
+}
+
+.nav-btn:hover,
+.hero-btn-primary:hover,
+.hero-btn-secondary:hover {
+  transform: translateY(-2px);
+}
+
+.nav-btn:active,
+.hero-btn-primary:active,
+.hero-btn-secondary:active,
+.sim-btn:active {
+  transform: translateY(1px) scale(0.97);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* ─── Freshness Gauge — 3D Elevation ────────────────────────────────────── */
+.radial-gauge-wrapper,
+.freshness-radial-container {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.freshness-radial-container:hover .radial-gauge-wrapper {
+  transform: scale(1.04) translateY(-2px);
+  filter: drop-shadow(0 8px 20px rgba(16,185,129,0.25));
+}
+
+/* ─── Sidebar — 3D Depth Offset ─────────────────────────────────────────── */
+.app-sidebar {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.35s ease;
+}
+
+/* ─── Modal Entrance — 3D Spring Drop ───────────────────────────────────── */
+.modal {
+  animation: modalSpringIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes modalSpringIn {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.93) rotateX(6deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateX(0deg);
+  }
+}
+
+.modal-overlay {
+  backdrop-filter: blur(12px) saturate(0.8);
+  -webkit-backdrop-filter: blur(12px) saturate(0.8);
+  background: rgba(4, 8, 15, 0.7);
+  transition: opacity 0.25s ease;
+}
+
+/* ─── Connectivity Pill — Live Glow Pulse ───────────────────────────────── */
+.connection-pill {
+  animation: connectedGlow 3s infinite ease-in-out;
+}
+
+@keyframes connectedGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(16,185,129,0.15); }
+  50%       { box-shadow: 0 0 18px rgba(16,185,129,0.35); }
+}
+
+.connection-pill.offline {
+  animation: offlineGlow 1.5s infinite ease-in-out;
+}
+
+@keyframes offlineGlow {
+  0%, 100% { box-shadow: 0 0 6px rgba(239,68,68,0.2); }
+  50%       { box-shadow: 0 0 16px rgba(239,68,68,0.45); }
+}
+
+/* ─── Countdown Dial — Pulsing Ring ─────────────────────────────────────── */
+.countdown-widget {
+  transition: transform 0.3s ease;
+}
+
+.countdown-widget.active {
+  animation: dialHeartbeat 1s ease-in-out infinite;
+}
+
+@keyframes dialHeartbeat {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.04); }
+}
+
+/* ─── Telemetry Table Rows — Hover Slide ────────────────────────────────── */
+.tech-table tbody tr {
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.tech-table tbody tr:hover {
+  background: rgba(16,185,129,0.06);
+  transform: translateX(4px);
+}
+
+/* ─── Toast Notification — Spring Slide-In ──────────────────────────────── */
+@keyframes slideToastIn {
+  from {
+    opacity: 0;
+    transform: translateX(80px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* ─── Mobile Bottom Nav — 3D Tab Active Press ───────────────────────────── */
+.mob-tab-btn {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease;
+}
+
+.mob-tab-btn.active {
+  transform: translateY(-4px) scale(1.1);
+}
+
+.mob-tab-btn:active {
+  transform: scale(0.92);
+}
+
+/* ─── Sidebar Nav Item — Hover Lift ─────────────────────────────────────── */
+.nav-item-link {
+  transition:
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.2s ease,
+    color 0.15s ease,
+    box-shadow 0.2s ease;
+}
+
+.nav-item-link:hover {
+  transform: translateX(5px);
+}
+
+.nav-item-link.active {
+  transform: translateX(3px);
+}
+
+/* ─── Mode Toggle — Scale Pop ───────────────────────────────────────────── */
+.mode-pill-btn {
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
+}
+
+.mode-pill-btn.active {
+  transform: scale(1.06);
+}
+
+/* ─── Chart Canvas — Hover Glow ─────────────────────────────────────────── */
+.chart-wrapper-box {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-radius: var(--radius-md);
+}
+
+.chart-wrapper-box:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 36px rgba(0,0,0,0.35), 0 0 20px rgba(6,182,212,0.1);
+}
+
+/* ─── Sidebar Brand Logo — Rotating 3D Shimmer ──────────────────────────── */
+.brand-icon-box,
+.brand-logo-badge {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+}
+
+.brand-icon-box:hover,
+.brand-logo-badge:hover {
+  transform: rotateY(15deg) rotateX(5deg) scale(1.08);
+  box-shadow: 0 0 28px rgba(16,185,129,0.45);
+}
+
+/* ─── Slider Controls — Track Glow on Drag ──────────────────────────────── */
+input[type="range"].tech-slider {
+  transition: box-shadow 0.15s ease;
+}
+
+input[type="range"].tech-slider:focus,
+input[type="range"].tech-slider:active {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.25);
+}
+
+/* ─── Reduced Motion Safety Net ─────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .metric-card:hover,
+  .actuator-card:hover,
+  .glass-panel:hover,
+  .panel-card:hover,
+  .preset-chip:hover,
+  .hero-float-badge:hover,
+  .nav-btn:hover,
+  .hero-btn-primary:hover,
+  .mob-tab-btn.active,
+  .nav-item-link:hover {
+    transform: none !important;
+    animation: none !important;
+  }
+
+  .fan-spinner {
+    animation: fanSpin 2s linear infinite;
+  }
+}

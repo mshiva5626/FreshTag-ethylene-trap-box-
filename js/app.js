@@ -1021,9 +1021,192 @@ class FreshGuardApp {
   }
 }
 
+// ─── Mobile Sidebar Drawer ──────────────────────────────────────────────────
+function initMobileSidebar() {
+  const sidebar = document.querySelector('.app-sidebar');
+  const hamburger = document.getElementById('hamburgerBtn');
+  if (!sidebar || !hamburger) return;
+
+  // Create backdrop element
+  let backdrop = document.querySelector('.sidebar-backdrop');
+  if (!backdrop) {
+    backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    document.body.appendChild(backdrop);
+  }
+
+  function openSidebar() {
+    sidebar.classList.add('sidebar-open');
+    backdrop.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeSidebar() {
+    sidebar.classList.remove('sidebar-open');
+    backdrop.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  hamburger.addEventListener('click', () => {
+    sidebar.classList.contains('sidebar-open') ? closeSidebar() : openSidebar();
+  });
+
+  backdrop.addEventListener('click', closeSidebar);
+
+  // Close sidebar when any nav link is clicked on mobile
+  sidebar.querySelectorAll('.nav-item-link').forEach(link => {
+    link.addEventListener('click', () => {
+      if (window.innerWidth < 1024) closeSidebar();
+    });
+  });
+
+  // Close on ESC
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeSidebar();
+  });
+}
+
+// ─── 3D Tilt on Hero Chamber Image ──────────────────────────────────────────
+function init3DHeroTilt() {
+  const wrap = document.getElementById('heroChamberImgWrap');
+  if (!wrap) return;
+
+  // Only on non-touch devices
+  if (window.matchMedia('(hover: none)').matches) return;
+
+  let rafId = null;
+  let targetRX = 0, targetRY = 0;
+  let currentRX = 0, currentRY = 0;
+
+  wrap.addEventListener('mousemove', (e) => {
+    const rect = wrap.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = (e.clientX - cx) / (rect.width / 2);
+    const dy = (e.clientY - cy) / (rect.height / 2);
+    targetRY = dx * 14;   // max 14deg horizontal
+    targetRX = -dy * 8;   // max 8deg vertical
+  });
+
+  wrap.addEventListener('mouseleave', () => {
+    targetRX = 0; targetRY = 0;
+  });
+
+  function animate() {
+    currentRX += (targetRX - currentRX) * 0.12;
+    currentRY += (targetRY - currentRY) * 0.12;
+    wrap.style.transform = `
+      perspective(900px)
+      rotateX(${currentRX.toFixed(2)}deg)
+      rotateY(${currentRY.toFixed(2)}deg)
+      scale3d(1.03, 1.03, 1.03)
+    `;
+    rafId = requestAnimationFrame(animate);
+  }
+
+  animate();
+}
+
+// ─── 3D Metric Card Tilt on Mouse Move ──────────────────────────────────────
+function initMetricCardTilt() {
+  if (window.matchMedia('(hover: none)').matches) return;
+
+  document.querySelectorAll('.metric-card, .actuator-card').forEach(card => {
+    card.addEventListener('mousemove', (e) => {
+      const rect = card.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = (e.clientX - cx) / (rect.width / 2);
+      const dy = (e.clientY - cy) / (rect.height / 2);
+      card.style.transform = `
+        translateY(-6px)
+        rotateX(${(-dy * 5).toFixed(1)}deg)
+        rotateY(${(dx * 7).toFixed(1)}deg)
+        scale(1.02)
+      `;
+    });
+
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = '';
+    });
+  });
+}
+
+// ─── Mobile Bottom Nav Active Tracking ───────────────────────────────────────
+function initMobileBottomNav() {
+  const tabs = document.querySelectorAll('.mob-tab-btn');
+  if (!tabs.length) return;
+
+  const sections = [
+    { id: 'overviewSection', tab: document.getElementById('mobNavHome') },
+    { id: 'heroSection',     tab: document.getElementById('mobNavChamber') },
+    { id: 'actuatorsSection',tab: document.getElementById('mobNavControl') },
+    { id: 'presetsSection',  tab: document.getElementById('mobNavPresets') },
+  ];
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+
+  // Intersection observer for scroll-based active state
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const found = sections.find(s => s.id === entry.target.id);
+          if (found && found.tab) {
+            tabs.forEach(t => t.classList.remove('active'));
+            found.tab.classList.add('active');
+          }
+        }
+      });
+    }, { threshold: 0.4 });
+
+    sections.forEach(({ id }) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+  }
+}
+
+// ─── Sidebar Nav Active Link Tracking ────────────────────────────────────────
+function initSidebarActiveTracking() {
+  const navLinks = document.querySelectorAll('.nav-item-link[href^="#"]');
+  if (!navLinks.length) return;
+
+  const sectionIds = Array.from(navLinks).map(l => l.getAttribute('href').slice(1));
+
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          navLinks.forEach(l => l.classList.remove('active'));
+          const active = document.querySelector(`.nav-item-link[href="#${entry.target.id}"]`);
+          if (active) active.classList.add('active');
+        }
+      });
+    }, { threshold: 0.3, rootMargin: '-60px 0px -60px 0px' });
+
+    sectionIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+  }
+}
+
 // Bootstrap application on DOM ready
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener('DOMContentLoaded', () => {
   const app = new FreshGuardApp();
   app.init();
   window.FreshGuard = app; // Expose globally for browser test inspection
+
+  // Initialize responsive & 3D enhancements
+  initMobileSidebar();
+  init3DHeroTilt();
+  initMetricCardTilt();
+  initMobileBottomNav();
+  initSidebarActiveTracking();
 });

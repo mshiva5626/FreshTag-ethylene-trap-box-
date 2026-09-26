@@ -1,408 +1,929 @@
 /* ==========================================================================
-   Smart FreshGuard – Responsive Layout System
-   Mobile-First · 5 Breakpoints: 375 / 480 / 768 / 1024 / 1440
+   Smart FreshGuard — Responsive Layout System (v3 — Full Rewrite)
+   Mobile-First · 6 Breakpoints: 375 / 480 / 640 / 768 / 1024 / 1280 / 1440
+   Pairs with: main.css + 3d-reactive.css
    ========================================================================== */
 
-/* ─── Base: Mobile-First (< 480px) ──────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE: MOBILE (<640px) — Single column, touch-optimised, bottom-nav
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-/* App container */
-.app-container {
-  padding: 0.75rem 0.75rem 6rem 0.75rem; /* bottom: room for mobile nav */
-  gap: 0.875rem;
+/* ─── App Shell ──────────────────────────────────────────────────────────── */
+.app-layout {
+  flex-direction: column;
 }
 
-/* Navbar: vertical stack on mobile */
-.top-navbar {
-  position: static !important;
-  padding: 0.75rem 1rem;
-  flex-wrap: wrap;
-  gap: 0.65rem;
+.app-sidebar {
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  width: 280px;
+  transform: translateX(-100%);
+  z-index: 200;
+  box-shadow: 8px 0 40px rgba(0,0,0,0.6);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.brand-subtitle { display: none; }
-
-.navbar-center {
-  order: 3;
-  width: 100%;
-  justify-content: space-between;
+.app-sidebar.sidebar-open {
+  transform: translateX(0);
 }
 
-.navbar-right {
-  gap: 0.4rem;
-  flex-wrap: wrap;
+/* Sidebar overlay backdrop on mobile */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+  z-index: 190;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
-.nav-btn {
-  padding: 0.45rem 0.7rem;
-  font-size: 0.78rem;
-  min-height: 44px; /* 44pt touch target */
+.sidebar-backdrop.active {
+  display: block;
+  opacity: 1;
 }
 
-/* Hero: stack vertically on mobile */
+.app-main {
+  margin-left: 0 !important;
+  width: 100% !important;
+}
+
+/* ─── Topbar ─────────────────────────────────────────────────────────────── */
+.app-topbar {
+  padding: 0 1rem;
+  height: 56px;
+}
+
+.topbar-breadcrumbs {
+  display: none;
+}
+
+.hamburger-btn {
+  display: flex !important;
+}
+
+.topbar-right {
+  gap: 0.5rem;
+}
+
+.connection-pill span:last-child {
+  display: none; /* hide "ESP32 REST API Online" text — keep dot only */
+}
+
+.mode-pill-btn {
+  padding: 0.3rem 0.55rem;
+  font-size: 0.7rem;
+}
+
+/* Hide some topbar items on smallest screens */
+.unitToggleBtn-wrap,
+#audioToggleBtn { display: none; }
+
+/* ─── Page Wrapper ───────────────────────────────────────────────────────── */
+.page-wrapper {
+  padding: 0.875rem 0.875rem 80px !important;
+  gap: 1rem !important;
+}
+
+/* ─── Hero Section ───────────────────────────────────────────────────────── */
 .hero-section {
-  grid-template-columns: 1fr;
-  min-height: auto;
-  border-radius: var(--radius-lg);
+  grid-template-columns: 1fr !important;
+  min-height: auto !important;
+  border-radius: 16px !important;
 }
 
 .hero-content {
-  padding: 1.75rem 1.25rem 1.25rem;
-  gap: 1.1rem;
+  padding: 1.5rem 1.25rem 1rem !important;
+  gap: 1rem !important;
   order: 1;
 }
 
 .hero-headline {
-  font-size: 1.6rem;
+  font-size: 1.5rem !important;
+  line-height: 1.2;
 }
 
 .hero-description {
-  font-size: 0.88rem;
-  max-width: 100%;
+  font-size: 0.85rem !important;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .hero-visual {
   order: 2;
-  padding: 0 1.25rem 1.5rem;
-  min-height: 260px;
+  padding: 0 1rem 1.25rem !important;
+  min-height: 240px !important;
 }
 
-.hero-chamber-img-wrap {
-  transform: none;
-}
+.hero-glow-orb { display: none; }
 
-.hero-chamber-img-wrap:hover {
-  transform: scale(1.02);
-}
+/* Float badges — minimal on mobile */
+.hero-float-badge-1 { left: 2% !important; top: 4% !important; transform: scale(0.88) !important; }
+.hero-float-badge-2 { display: none !important; }
+.hero-float-badge-3 { display: none !important; }
+.hero-float-badge-4 { right: 2% !important; bottom: 8% !important; transform: scale(0.88) !important; }
 
-/* Floating badges: fewer visible on mobile */
-.hero-float-badge-1 { left: 2%; top: 5%; }
-.hero-float-badge-2 { display: none; }
-.hero-float-badge-3 { display: none; }
-.hero-float-badge-4 { right: 2%; bottom: 10%; }
-
-/* Stats row */
 .hero-stats-row {
-  gap: 0.5rem;
+  gap: 0.4rem;
+  flex-wrap: wrap;
 }
 
 .hero-stat-pill {
-  min-width: 75px;
-  padding: 0.5rem 0.75rem;
+  min-width: 68px;
+  padding: 0.45rem 0.65rem;
+  flex: 1;
+  min-width: 72px;
 }
 
-.hero-stat-value { font-size: 1.1rem; }
+.hero-stat-value { font-size: 0.95rem; }
+.hero-stat-label { font-size: 0.62rem; }
 
-/* Metrics: 2-column grid on mobile */
-.metrics-grid {
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
-}
-
-/* Actuators: 2-col grid */
-.actuators-grid {
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
-}
-
-/* Dashboard main: single column */
-.dashboard-main-grid {
-  grid-template-columns: 1fr;
-  gap: 0.875rem;
-}
-
-/* Analytics split */
-.analytics-controls-split {
-  grid-template-columns: 1fr;
-}
-
-/* Intelligence row */
-.intelligence-row {
-  grid-template-columns: 1fr;
-}
-
-.farmer-tip-card { grid-column: 1 / -1; }
-
-/* Threshold inputs */
-.threshold-inputs-grid { grid-template-columns: 1fr; }
-
-/* ATM diagnostics */
-.atm-diag-grid { grid-template-columns: 1fr; }
-
-/* Simulator drawer: full width */
-.simulator-drawer-modal {
-  width: 100vw;
-  border-radius: 0;
-}
-
-/* Number sizes */
-.shelf-life-days { font-size: 2.5rem; }
-.freshness-score-number { font-size: 1.8rem; }
-.eth-value { font-size: 1.4rem; }
-
-/* Toast */
-.toast { min-width: unset; max-width: 90vw; }
-
-/* State banner: stack */
-.state-banner-container {
+.hero-cta-row {
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 1rem;
+  gap: 0.65rem;
 }
 
-.countdown-widget { width: 100%; justify-content: flex-start; }
-
-/* Chamber view */
-.chamber-outer-casing { width: 94%; }
-
-/* Mobile bottom nav: SHOW */
-.mobile-bottom-nav { display: flex; }
-
-/* Sections that should be hidden on mobile (accessible via nav) */
-.mobile-section {
-  display: none;
+.hero-cta-row .hero-btn-primary,
+.hero-cta-row .hero-btn-secondary {
+  width: 100%;
+  justify-content: center;
 }
 
-.mobile-section.visible {
-  display: block;
+/* Ticker — hidden on mobile, saves space */
+.hero-status-ticker { display: none; }
+
+/* Chamber produce badge — smaller */
+.chamber-produce-badge {
+  font-size: 0.7rem;
+  padding: 0.3rem 0.6rem;
 }
 
-/* ─── Phablet (≥ 480px) ──────────────────────────────────────────────────── */
-@media (min-width: 480px) {
-  .app-container {
-    padding: 1rem 1rem 6rem 1rem;
+/* ─── State Banner ───────────────────────────────────────────────────────── */
+.state-banner-container {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 0.65rem !important;
+  padding: 0.875rem 1rem !important;
+}
+
+.banner-left {
+  width: 100%;
+  gap: 0.65rem;
+}
+
+.state-icon-bubble {
+  font-size: 1.5rem;
+  width: 44px;
+  height: 44px;
+}
+
+.state-title {
+  font-size: 0.92rem !important;
+}
+
+.state-desc {
+  font-size: 0.78rem !important;
+}
+
+.countdown-widget {
+  width: 100% !important;
+  justify-content: flex-start !important;
+}
+
+/* ─── Metric Cards ───────────────────────────────────────────────────────── */
+.metrics-grid {
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 0.75rem !important;
+}
+
+.metric-card {
+  padding: 1rem !important;
+}
+
+.metric-main-value {
+  font-size: 2rem !important;
+}
+
+.metric-unit-text {
+  font-size: 1rem !important;
+}
+
+/* ─── Dashboard Main Grid ────────────────────────────────────────────────── */
+.dashboard-main-grid {
+  grid-template-columns: 1fr !important;
+  gap: 1rem !important;
+}
+
+/* ─── Actuator Cards ─────────────────────────────────────────────────────── */
+.actuators-grid {
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 0.65rem !important;
+}
+
+.actuator-card {
+  padding: 0.875rem !important;
+}
+
+.actuator-name { font-size: 0.82rem !important; }
+
+/* ─── Preset Carousel ────────────────────────────────────────────────────── */
+.presetsCarousel,
+.presets-carousel {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 0.6rem !important;
+  overflow: visible !important;
+}
+
+.preset-chip {
+  flex: none !important;
+}
+
+/* ─── Threshold Sliders ──────────────────────────────────────────────────── */
+.thresholds-grid,
+.threshold-inputs-grid {
+  grid-template-columns: 1fr !important;
+}
+
+.slider-control-group[style*="grid-column"] {
+  grid-column: 1 !important;
+}
+
+/* ─── Chamber Cutaway ────────────────────────────────────────────────────── */
+.chamber-canvas-box {
+  height: 280px !important;
+}
+
+.chamber-outer-casing {
+  width: 88% !important;
+}
+
+/* ─── Intelligence Panel ─────────────────────────────────────────────────── */
+.freshness-radial-container {
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.radial-gauge-wrapper {
+  transform: scale(0.9);
+}
+
+.shelf-life-card {
+  padding: 0.875rem !important;
+}
+
+.shelf-days-readout {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.agro-metrics-list {
+  grid-template-columns: 1fr 1fr !important;
+  gap: 0.5rem;
+}
+
+/* ─── Telemetry Charts ───────────────────────────────────────────────────── */
+#tempHumidityChart { height: 160px !important; }
+#gasRipeningChart  { height: 130px !important; }
+
+/* ─── History Log Table ──────────────────────────────────────────────────── */
+.tech-table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tech-table {
+  min-width: 560px;
+  font-size: 0.75rem;
+}
+
+.table-actions-row {
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: stretch !important;
+}
+
+.tech-search-input {
+  width: 100% !important;
+}
+
+/* ─── Hardware Lab Modal ─────────────────────────────────────────────────── */
+.modal-overlay {
+  align-items: flex-end !important;
+}
+
+.modal {
+  border-radius: 20px 20px 0 0 !important;
+  max-height: 90vh !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.modal-body {
+  max-height: calc(90vh - 100px);
+  overflow-y: auto;
+}
+
+.sim-action-grid {
+  grid-template-columns: 1fr !important;
+}
+
+/* ─── Firmware Modal ─────────────────────────────────────────────────────── */
+.pinout-table {
+  font-size: 0.72rem;
+  min-width: 420px;
+}
+
+.pinout-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Mobile Bottom Nav — SHOW ───────────────────────────────────────────── */
+.mobile-bottom-bar {
+  display: flex !important;
+}
+
+/* ─── Glass Panel Header ─────────────────────────────────────────────────── */
+.glass-panel-header {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.glass-panel-header .section-badge {
+  display: none; /* save space on mobile */
+}
+
+.section-title { font-size: 0.95rem !important; }
+.section-subtitle { font-size: 0.72rem !important; }
+
+/* ─── Sidebar HW Card ─────────────────────────────────────────────────────── */
+.sidebar-hw-card { font-size: 0.7rem; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SMALL TABLET (≥ 640px) — Slightly more room
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 640px) {
+  .page-wrapper {
+    padding: 1rem 1rem 80px !important;
   }
 
-  .hero-headline { font-size: 1.85rem; }
-  .hero-description { font-size: 0.92rem; }
+  .hero-visual { min-height: 280px !important; }
+  .hero-headline { font-size: 1.75rem !important; }
+  .hero-description { -webkit-line-clamp: unset; overflow: visible; }
+  .hero-cta-row { flex-direction: row; }
+  .hero-cta-row .hero-btn-primary,
+  .hero-cta-row .hero-btn-secondary { width: auto; }
 
-  .hero-visual {
-    min-height: 300px;
-    padding: 0 1.5rem 1.75rem;
-  }
+  .hero-status-ticker { display: flex; overflow: hidden; }
 
-  .metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .chamber-produce-badge { font-size: 0.75rem; }
 
   .actuators-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr) !important;
   }
 
-  .hero-float-badge-2 { display: flex; }
+  .presetsCarousel,
+  .presets-carousel {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  .agro-metrics-list {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .sim-action-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
 }
 
-/* ─── Tablet Portrait (≥ 768px) ─────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TABLET PORTRAIT (≥ 768px) — Sidebar can dock, 2-col layouts emerge
+   ═══════════════════════════════════════════════════════════════════════════ */
 @media (min-width: 768px) {
-  .app-container {
-    padding: 1.25rem 1.25rem 5rem 1.25rem;
-    gap: 1.25rem;
+  /* Sidebar: hidden drawer (slide-in on tap) — stays off-canvas at 768 */
+  .app-main { margin-left: 0 !important; }
+
+  .page-wrapper {
+    padding: 1.25rem 1.25rem 80px !important;
+    gap: 1.25rem !important;
   }
 
-  /* Navbar: horizontal layout restored */
-  .top-navbar {
-    flex-wrap: nowrap;
-    position: sticky !important;
-    top: 1rem;
-    padding: 0.9rem 1.4rem;
-  }
+  /* Topbar */
+  .app-topbar { height: 64px; padding: 0 1.5rem; }
+  .topbar-breadcrumbs { display: flex; }
+  #audioToggleBtn { display: inline-flex; }
 
-  .brand-subtitle { display: block; }
-  .navbar-center { order: 0; width: auto; }
-  .navbar-right { gap: 0.65rem; flex-wrap: nowrap; }
-  .nav-btn { padding: 0.5rem 0.95rem; font-size: 0.82rem; }
-
-  /* Hero: 2-column split at tablet */
+  /* Hero 2-col at tablet */
   .hero-section {
-    grid-template-columns: 1fr 1fr;
-    min-height: 460px;
+    grid-template-columns: 1fr 1fr !important;
+    min-height: 420px !important;
   }
 
   .hero-content {
-    padding: 2.5rem 1.5rem 2.5rem 2rem;
+    padding: 2rem 1.5rem 2rem 2rem !important;
     order: 0;
-    gap: 1.35rem;
   }
 
   .hero-visual {
     order: 0;
-    min-height: 380px;
-    padding: 1.75rem 2rem 1.75rem 1rem;
+    min-height: 360px !important;
+    padding: 1.5rem 1.75rem 1.5rem 0.75rem !important;
   }
 
-  .hero-headline { font-size: 2.1rem; }
+  .hero-headline { font-size: 2rem !important; }
 
-  .hero-float-badge-1 { left: -3%; }
-  .hero-float-badge-2 { display: flex; }
-  .hero-float-badge-3 { display: flex; }
-  .hero-float-badge-4 { display: flex; right: -2%; }
+  .hero-float-badge-1 { left: -4% !important; transform: scale(1) !important; }
+  .hero-float-badge-2 { display: flex !important; transform: scale(1) !important; }
+  .hero-float-badge-3 { display: flex !important; }
+  .hero-float-badge-4 { right: -4% !important; transform: scale(1) !important; }
 
-  /* Metrics: 4 columns */
-  .metrics-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-  }
-
-  /* Actuators: 3 cols at tablet */
-  .actuators-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  /* Intelligence row */
-  .intelligence-row {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  /* ATM: 2 col */
-  .atm-diag-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  /* Threshold inputs */
-  .threshold-inputs-grid { grid-template-columns: repeat(2, 1fr); }
-
-  /* Hide mobile nav on tablet */
-  .mobile-bottom-nav { display: none; }
-  .mobile-section { display: block !important; }
-
-  /* Banner: horizontal */
+  /* State banner */
   .state-banner-container {
-    flex-direction: row;
-    align-items: center;
-    padding: 1.1rem 1.5rem;
+    flex-direction: row !important;
+    align-items: center !important;
+    padding: 1rem 1.5rem !important;
   }
 
-  .countdown-widget { width: auto; }
+  .countdown-widget {
+    width: auto !important;
+    justify-content: flex-end !important;
+  }
+
+  /* Metrics: 4-col */
+  .metrics-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 1rem !important;
+  }
+
+  /* Actuators: 3–4 col */
+  .actuators-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  /* Presets */
+  .presetsCarousel,
+  .presets-carousel {
+    display: flex !important;
+    overflow-x: auto !important;
+  }
+
+  /* Thresholds */
+  .thresholds-grid,
+  .threshold-inputs-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .slider-control-group[style*="grid-column"] {
+    grid-column: 1 / -1 !important;
+  }
+
+  /* Chamber */
+  .chamber-canvas-box { height: 340px !important; }
+  .chamber-outer-casing { width: 92% !important; }
+
+  /* Intelligence */
+  .freshness-radial-container { flex-direction: row; }
+  .agro-metrics-list { grid-template-columns: 1fr 1fr !important; }
+
+  /* Charts */
+  #tempHumidityChart { height: 180px !important; }
+  #gasRipeningChart  { height: 150px !important; }
+
+  /* Modal — sheet from bottom still on tablet */
+  .modal {
+    border-radius: 20px 20px 0 0 !important;
+    max-width: 640px !important;
+    margin: 0 auto;
+  }
+
+  .sim-action-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Glass panel headers */
+  .glass-panel-header .section-badge { display: inline-flex; }
+  .section-title { font-size: 1rem !important; }
+
+  /* Hide mobile bottom nav */
+  .mobile-bottom-bar { display: none !important; }
+  .page-wrapper { padding-bottom: 3rem !important; }
 }
 
-/* ─── Laptop (≥ 1024px) ──────────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAPTOP (≥ 1024px) — Full sidebar docks, 2-col dashboard, all features
+   ═══════════════════════════════════════════════════════════════════════════ */
 @media (min-width: 1024px) {
-  .app-container {
-    padding: 1.25rem 1.5rem 3rem 1.5rem;
-    gap: 1.5rem;
+  /* Sidebar permanently docked */
+  .app-sidebar {
+    position: fixed !important;
+    transform: translateX(0) !important;
+    box-shadow: none !important;
   }
 
-  /* Hero: full 55/45 split */
+  .sidebar-backdrop { display: none !important; }
+  .hamburger-btn { display: none !important; }
+
+  .app-main {
+    margin-left: var(--sidebar-width) !important;
+    width: calc(100% - var(--sidebar-width)) !important;
+  }
+
+  .page-wrapper {
+    padding: 1.5rem 1.75rem 4rem !important;
+    gap: 1.5rem !important;
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+
+  /* Topbar */
+  .connection-pill span:last-child { display: inline; }
+  .unitToggleBtn-wrap { display: inline-flex; }
+  .app-topbar { height: 64px; padding: 0 1.75rem; }
+
+  /* Hero: 55/45 split */
   .hero-section {
-    grid-template-columns: 55% 45%;
-    min-height: 540px;
+    grid-template-columns: 55% 45% !important;
+    min-height: 520px !important;
   }
 
   .hero-content {
-    padding: 3rem 2rem 3rem 2.5rem;
-    gap: 1.5rem;
+    padding: 2.75rem 2rem 2.75rem 2.5rem !important;
+    gap: 1.5rem !important;
   }
 
   .hero-visual {
-    min-height: 440px;
-    padding: 2rem 2.5rem 2rem 1rem;
-  }
-
-  .hero-headline { font-size: clamp(1.9rem, 2.8vw, 2.7rem); }
-
-  /* Floating badges: all visible */
-  .hero-float-badge-1 { left: -5%; }
-  .hero-float-badge-2 { left: -8%; }
-  .hero-float-badge-3 { right: -5%; }
-  .hero-float-badge-4 { right: -3%; }
-
-  /* Dashboard main: sidebar layout */
-  .dashboard-main-grid {
-    grid-template-columns: 1fr 340px;
-    gap: 1.25rem;
-  }
-
-  /* Analytics split */
-  .analytics-controls-split {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  /* Intelligence row */
-  .intelligence-row {
-    grid-template-columns: 1fr 1.2fr 1fr;
-  }
-
-  /* Actuators: 5 columns (one per actuator) */
-  .actuators-grid {
-    grid-template-columns: repeat(5, 1fr);
-  }
-
-  .mobile-bottom-nav { display: none; }
-}
-
-/* ─── Desktop (≥ 1280px) ─────────────────────────────────────────────────── */
-@media (min-width: 1280px) {
-  .hero-section {
-    min-height: 560px;
-  }
-
-  .dashboard-main-grid {
-    grid-template-columns: 1fr 360px;
-  }
-
-  .intelligence-row {
-    grid-template-columns: 1fr 1.3fr 1fr;
-  }
-
-  .farmer-tip-card { grid-column: 1 / -1; }
-}
-
-/* ─── Wide (≥ 1440px) ─────────────────────────────────────────────────────── */
-@media (min-width: 1440px) {
-  .app-container {
-    max-width: 1480px;
-  }
-
-  .hero-section {
-    min-height: 580px;
+    min-height: 420px !important;
+    padding: 1.75rem 2.25rem 1.75rem 0.75rem !important;
   }
 
   .hero-headline {
-    font-size: 2.9rem;
+    font-size: clamp(1.9rem, 2.6vw, 2.6rem) !important;
+  }
+
+  .hero-float-badge-1 { left: -6% !important; top: 12% !important; }
+  .hero-float-badge-2 { left: -9% !important; bottom: 20% !important; }
+  .hero-float-badge-3 { right: -5% !important; top: 10% !important; }
+  .hero-float-badge-4 { right: -3% !important; bottom: 12% !important; }
+
+  .hero-glow-orb { display: block; }
+  .hero-status-ticker { display: flex; }
+
+  /* State banner */
+  .state-icon-bubble { font-size: 2rem; width: 52px; height: 52px; }
+
+  /* Metrics: 4-col */
+  .metrics-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 1.25rem !important;
+  }
+
+  .metric-main-value { font-size: 2.5rem !important; }
+
+  /* Dashboard: 2-col main split */
+  .dashboard-main-grid {
+    grid-template-columns: 1fr 360px !important;
+    gap: 1.25rem !important;
+    align-items: start;
+  }
+
+  /* Actuators: all 5 in a row */
+  .actuators-grid {
+    grid-template-columns: repeat(5, 1fr) !important;
+  }
+
+  /* Thresholds */
+  .thresholds-grid,
+  .threshold-inputs-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Chamber */
+  .chamber-canvas-box { height: 380px !important; }
+  .chamber-outer-casing { width: 94% !important; }
+
+  /* Intelligence */
+  .agro-metrics-list { grid-template-columns: 1fr 1fr !important; }
+
+  /* Charts */
+  #tempHumidityChart { height: 200px !important; }
+  #gasRipeningChart  { height: 160px !important; }
+
+  /* Modal — centered floating card */
+  .modal-overlay { align-items: center !important; }
+  .modal {
+    border-radius: 20px !important;
+    max-width: 600px !important;
+    width: 90% !important;
+    max-height: 85vh;
+  }
+
+  .sim-action-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Bottom nav */
+  .mobile-bottom-bar { display: none !important; }
+  .page-wrapper { padding-bottom: 4rem !important; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESKTOP (≥ 1280px) — Generous breathing room
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 1280px) {
+  .hero-section {
+    min-height: 550px !important;
+    grid-template-columns: 55% 45% !important;
   }
 
   .dashboard-main-grid {
-    grid-template-columns: 1fr 380px;
+    grid-template-columns: 1fr 380px !important;
+  }
+
+  .hero-headline {
+    font-size: clamp(2rem, 2.8vw, 2.8rem) !important;
+  }
+
+  /* 3D float badges: exaggerated offsets on wide screens */
+  .hero-float-badge-1 { left: -8% !important; }
+  .hero-float-badge-2 { left: -10% !important; }
+  .hero-float-badge-3 { right: -6% !important; }
+  .hero-float-badge-4 { right: -5% !important; }
+
+  .chamber-canvas-box { height: 400px !important; }
+
+  /* Actuators in nice 5-col row with more space */
+  .actuators-grid {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 1rem !important;
+  }
+
+  /* Modal */
+  .modal {
+    max-width: 680px !important;
   }
 }
 
-/* ─── Ultra-wide (≥ 1600px) ──────────────────────────────────────────────── */
-@media (min-width: 1600px) {
-  .app-container {
-    max-width: 1680px;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WIDE (≥ 1440px) — Max-width cap at 1480px
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 1440px) {
+  .page-wrapper {
+    max-width: 1480px;
+    padding: 1.75rem 2rem 4rem !important;
   }
 
-  .metrics-grid {
-    grid-template-columns: repeat(4, 1fr);
+  .hero-section { min-height: 570px !important; }
+
+  .hero-headline { font-size: 2.9rem !important; }
+
+  .dashboard-main-grid {
+    grid-template-columns: 1fr 400px !important;
   }
 
-  .intelligence-row {
-    grid-template-columns: 1fr 1.3fr 1fr;
-  }
+  .metrics-grid { gap: 1.5rem !important; }
 }
 
-/* ─── Landscape Phone ─────────────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ULTRA-WIDE (≥ 1680px) — 4-col metrics, wider right panel
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 1680px) {
+  .dashboard-main-grid {
+    grid-template-columns: 1fr 420px !important;
+  }
+
+  .hero-section { min-height: 600px !important; }
+
+  .chamber-canvas-box { height: 440px !important; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LANDSCAPE PHONE (max-width 768px + landscape)
+   ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) and (orientation: landscape) {
   .hero-section {
-    grid-template-columns: 1fr 1fr;
-    min-height: 320px;
+    grid-template-columns: 1fr 1fr !important;
+    min-height: 300px !important;
   }
 
   .hero-content {
-    padding: 1.25rem 1rem 1.25rem 1.5rem;
-    gap: 0.85rem;
+    padding: 1rem 1rem 1rem 1.25rem !important;
+    gap: 0.75rem !important;
     order: 0;
   }
 
   .hero-visual {
     order: 0;
-    padding: 0.75rem 1.5rem 0.75rem 0.5rem;
-    min-height: 220px;
+    min-height: 200px !important;
+    padding: 0.75rem 1.25rem 0.75rem 0.5rem !important;
   }
 
-  .hero-headline { font-size: 1.4rem; }
+  .hero-headline { font-size: 1.35rem !important; }
+  .hero-description { display: none; }
+  .hero-stats-row { gap: 0.35rem; }
+  .hero-stat-value { font-size: 0.9rem; }
 
-  .app-container {
-    padding: 0.5rem 0.75rem 5rem 0.75rem;
+  .page-wrapper { padding: 0.5rem 0.75rem 5rem !important; }
+
+  .metrics-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 0.5rem !important;
   }
+
+  .metric-card { padding: 0.75rem !important; }
+  .metric-main-value { font-size: 1.5rem !important; }
+
+  .chamber-canvas-box { height: 240px !important; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOUCH DEVICE OPTIMISATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (hover: none) and (pointer: coarse) {
+  /* Disable hover 3D transforms on pure touch devices — use tap states instead */
+  .metric-card:hover,
+  .actuator-card:hover,
+  .glass-panel:hover,
+  .panel-card:hover,
+  .preset-chip:hover,
+  .nav-btn:hover,
+  .hero-btn-primary:hover,
+  .hero-btn-secondary:hover {
+    transform: none;
+  }
+
+  /* Tap feedback instead */
+  .metric-card:active    { transform: scale(0.97); }
+  .actuator-card:active  { transform: scale(0.97); }
+  .preset-chip:active    { transform: scale(0.95); }
+  .nav-btn:active        { transform: scale(0.95); }
+
+  /* Increase all touch targets */
+  .nav-btn,
+  .hero-btn-primary,
+  .hero-btn-secondary,
+  .mode-pill-btn,
+  .sim-btn,
+  .mob-tab-btn {
+    min-height: 48px;
+  }
+
+  .switch-toggle {
+    transform: scale(1.1);
+  }
+
+  /* Scrollable carousel snap */
+  .presetsCarousel,
+  .presets-carousel {
+    scroll-snap-type: x mandatory;
+  }
+
+  .preset-chip {
+    scroll-snap-align: start;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE BOTTOM NAV BAR — Complete Spec
+   ═══════════════════════════════════════════════════════════════════════════ */
+.mobile-bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 68px;
+  background: rgba(8, 14, 22, 0.95);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  z-index: 150;
+  padding-bottom: env(safe-area-inset-bottom);
+  display: none; /* shown via JS / media query */
+}
+
+.mobile-bottom-bar-inner {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: space-around;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 0.5rem;
+}
+
+.mob-tab-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.75rem;
+  background: none;
+  border: none;
+  color: #64748B;
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  min-width: 56px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mob-tab-btn svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.15s ease;
+}
+
+.mob-tab-btn.active {
+  color: #34D399;
+}
+
+.mob-tab-btn.active svg {
+  stroke: #34D399;
+  filter: drop-shadow(0 0 6px rgba(16,185,129,0.5));
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIDEBAR MOBILE OVERLAY SYSTEM
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1023px) {
+  .app-sidebar {
+    transform: translateX(-100%) !important;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    z-index: 200 !important;
+  }
+
+  .app-sidebar.sidebar-open {
+    transform: translateX(0) !important;
+    box-shadow: 12px 0 60px rgba(0,0,0,0.7) !important;
+  }
+
+  .hamburger-btn {
+    display: flex !important;
+  }
+
+  .app-main {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hamburger-btn { display: none !important; }
+
+  .app-sidebar {
+    transform: translateX(0) !important;
+    position: fixed !important;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY & PERFORMANCE
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar { transition: none !important; }
+  .modal       { animation: none; opacity: 1; transform: none; }
+  .hero-section::before { animation: none; }
+  .brand-logo-badge::after { animation: none; }
+  .fan-spinner { animation-duration: 2s; }
+  .state-banner-container.state-door-open { animation: none !important; }
+}
+
+/* Focus ring — keyboard accessibility */
+:focus-visible {
+  outline: 2px solid #10B981;
+  outline-offset: 3px;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Prevent layout overflow */
+*, *::before, *::after {
+  max-width: 100%;
 }
