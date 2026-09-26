@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>FreshGuard IoT — Smart Ethylene & Commercial Fruit Storage Vault</title>
+  <meta name="description" content="Industrial IoT storage chamber for fruit and produce preservation. Autonomous ESP32 climate control, real-time ethylene gas monitoring, and ultrasonic humidity regulation.">
+  <meta name="theme-color" content="#060D12">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Core Design System & Modular Stylesheets -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/hero.css">
+  <link rel="stylesheet" href="css/chamber-view.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/controls.css">
+  <link rel="stylesheet" href="css/responsive.css">
+
+  <style>
+    /* ===================================================================
+       CRITICAL APP SHELL & SPATIAL POLISH (Antigravity UI/UX Pro Max)
+       =================================================================== */
+    :root {
+      --sidebar-width: 250px;
+      --topbar-height: 64px;
+      --mobile-nav-height: 68px;
+    }
+
+    body {
+      background: #050B10;
+      color: #F1F5F9;
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Layout Shell */
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+      width: 100%;
+    }
+
+    /* Fixed Left Sidebar (Laptop/Desktop) */
+    .app-sidebar {
+      width: var(--sidebar-width);
+      background: rgba(10, 18, 26, 0.95);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      z-index: 120;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 1.25rem 1rem;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.25rem 0.5rem 1.25rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .brand-icon-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.15));
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #34D399;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+    }
+
+    .brand-text h1 {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #F8FAFC;
+      line-height: 1.1;
+    }
+
+    .brand-text span {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #10B981;
+      text-transform: uppercase;
+    }
+
+    /* Active Chamber Selector Card in Sidebar */
+    .chamber-select-card {
+      margin: 1rem 0;
+      padding: 0.75rem 0.85rem;
+      background: rgba(16, 185, 129, 0.06);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chamber-select-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .chamber-select-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #E2E8F0;
+    }
+
+    .chamber-select-sub {
+      font-size: 0.68rem;
+      color: #10B981;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .status-pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10B981;
+      box-shadow: 0 0 8px #10B981;
+      animation: pulseGreen 2s infinite;
+    }
+
+    @keyframes pulseGreen {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+
+    /* Navigation Links */
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      flex: 1;
+      overflow-y: auto;
+      margin: 0.5rem 0;
+    }
+
+    .nav-item-link {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 10px;
+      color: #94A3B8;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .nav-item-link svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      flex-shrink: 0;
+    }
+
+    .nav-item-link:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #F1F5F9;
+      transform: translateX(3px);
+    }
+
+    .nav-item-link.active {
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.04));
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34D399;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.08);
+    }
+
+    .nav-badge-pill {
+      margin-left: auto;
+      font-size: 0.65rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34D399;
+      font-family: var(--font-mono);
+      font-weight: 700;
+    }
+
+    /* Sidebar Footer Hardware Card */
+    .sidebar-hw-card {
+      padding: 0.85rem;
+      background: rgba(7, 13, 20, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .sidebar-hw-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+    }
+
+    .hw-label { color: #64748B; font-weight: 500; }
+    .hw-val { color: #CBD5E1; font-weight: 600; font-family: var(--font-mono); }
+
+    /* Main Content Wrapper */
+    .app-main {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      width: calc(100% - var(--sidebar-width));
+    }
+
+    /* Modern Topbar */
+    .app-topbar {
+      height: var(--topbar-height);
+      background: rgba(8, 14, 21, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.75rem;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .hamburger-btn {
+      display: none;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #CBD5E1;
+      padding: 0.45rem;
+      cursor: pointer;
+    }
+
+    .topbar-breadcrumbs {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: #64748B;
+      font-weight: 500;
+    }
+
+    .topbar-breadcrumbs span.active {
+      color: #F1F5F9;
+      font-weight: 700;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    /* Mode Pill Toggle */
+    .mode-pill-toggle {
+      display: flex;
+      background: rgba(15, 23, 32, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      padding: 3px;
+      gap: 2px;
+    }
+
+    .mode-pill-btn {
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #94A3B8;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .mode-pill-btn.active {
+      background: #10B981;
+      color: #022C22;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
+    }
+
+    .mode-pill-btn.active.manual {
+      background: #F59E0B;
+      color: #291800;
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.4);
+    }
+
+    .connection-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.75rem;
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #34D399;
+    }
+
+    /* Page Container */
+    .page-wrapper {
+      padding: 1.5rem 1.75rem 4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* Hero Section Polish */
+    .hero-section {
+      background: linear-gradient(135deg, rgba(8, 16, 24, 0.98) 0%, rgba(12, 24, 36, 0.95) 50%, rgba(6, 13, 20, 0.98) 100%);
+      border: 1px solid rgba(16, 185, 129, 0.22);
+      border-radius: 24px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 80px rgba(16, 185, 129, 0.08) inset;
+    }
+
+    .hero-chamber-img-wrap {
+      cursor: pointer;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      position: relative;
+    }
+
+    .hero-chamber-img-wrap::after {
+      content: '⚡ CLICK CHAMBER TO TOGGLE DOOR & INTERLOCK';
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(6, 13, 20, 0.85);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #34D399;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    }
+
+    /* Produce Crate Floating Badge */
+    .chamber-produce-badge {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: rgba(9, 18, 27, 0.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #FDE68A;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+      z-index: 10;
+    }
+
+    /* Mobile Bottom Navigation Bar */
+    .mobile-bottom-bar {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: var(--mobile-nav-height);
+      background: rgba(8, 14, 21, 0.96);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 200;
+      padding: 0 0.5rem;
+      padding-bottom: env(safe-area-inset-bottom, 12px);
+    }
+
+    .mobile-bottom-bar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      height: 100%;
+    }
+
+    .mob-tab-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 6px 12px;
+      border-radius: 12px;
+      border: none;
+      background: transparent;
+      color: #64748B;
+      font-size: 0.65rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .mob-tab-btn svg {
+      width: 22px;
+      height: 22px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .mob-tab-btn.active {
+      color: #10B981;
+    }
+
+    .mob-tab-btn.active svg {
+      filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.6));
+    }
+
+    /* Responsive Breakpoints */
+    @media (max-width: 1024px) {
+      .app-sidebar {
+        transform: translateX(-100%);
+      }
+      .app-sidebar.open {
+        transform: translateX(0);
+      }
+      .app-main {
+        margin-left: 0;
+        width: 100%;
+      }
+      .hamburger-btn {
+        display: flex;
+      }
+      .mobile-bottom-bar {
+        display: block;
+      }
+      .page-wrapper {
+        padding: 1rem 1rem calc(var(--mobile-nav-height) + 24px);
+        gap: 1.25rem;
+      }
+      .hero-section {
+        grid-template-columns: 1fr;
+      }
+      .hero-content {
+        padding: 2rem 1.5rem 1rem;
+      }
+      .hero-visual {
+        padding: 0.5rem 1.5rem 2rem;
+      }
+      .hero-float-badge-2, .hero-float-badge-3 {
+        display: none;
+      }
+      .dashboard-main-grid {
+        grid-template-columns: 1fr;
+      }
+      .analytics-controls-split {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.65rem;
+      }
+      .topbar-breadcrumbs {
+        display: none;
+      }
+      .hero-headline {
+        font-size: 1.65rem;
+      }
+      .hero-chamber-img-wrap::after {
+        font-size: 0.55rem;
+        padding: 0.25rem 0.5rem;
+      }
+    }
+
+    /* Sidebar Overlay for Mobile */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 110;
+    }
+    .sidebar-overlay.open {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ─── MOBILE SIDEBAR BACKDROP ───────────────────────────── -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ─── FIXED LEFT SIDEBAR (Desktop/Laptop) ────────────────── -->
+  <aside class="app-sidebar" id="sidebar">
+    <div>
+      <!-- Brand Logo -->
+      <div class="sidebar-brand">
+        <div class="brand-icon-box">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>FreshGuard</h1>
+          <span>Autonomous Vault</span>
+        </div>
+      </div>
+
+      <!-- Active Chamber Unit Selector -->
+      <div class="chamber-select-card">
+        <div class="chamber-select-info">
+          <span class="chamber-select-title">Vault SF-001</span>
+          <span class="chamber-select-sub">
+            <span class="status-pulse-dot"></span>
+            Cold Room Alpha · Live
+          </span>
+        </div>
+        <span class="nav-badge-pill" id="sidebarTempPill">2.4°C</span>
+      </div>
+
+      <!-- Navigation Menu -->
+      <nav class="sidebar-nav">
+        <a href="#overviewSection" class="nav-item-link active">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Dashboard
+        </a>
+        <a href="#heroSection" class="nav-item-link">
+          <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          3D Digital Twin
+        </a>
+        <a href="#actuatorsSection" class="nav-item-link">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          Actuator Relays
+          <span class="nav-badge-pill">5 Relays</span>
+        </a>
+        <a href="#presetsSection" class="nav-item-link">
+          <svg viewBox="0 0 24 24"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+          Crop Presets
+        </a>
+        <a href="#intelligenceSection" class="nav-item-link">
+          <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          Freshness &amp; VPD
+        </a>
+        <a href="#chartsSection" class="nav-item-link">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Telemetry Charts
+        </a>
+        <a class="nav-item-link open-simulator-btn" id="openSimulatorBtn">
+          <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Hardware Lab
+        </a>
+        <a class="nav-item-link open-firmware-btn" id="openFirmwareModalBtn">
+          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          ESP32 Sketch
+        </a>
+      </nav>
+    </div>
+
+    <!-- Sidebar Hardware Specs Footer -->
+    <div class="sidebar-hw-card">
+      <div class="sidebar-hw-row">
+        <span class="hw-label">Controller</span>
+        <span class="hw-val">ESP32 WROOM-32</span>
+      </div>
+      <div class="sidebar-hw-row">
+        <span class="hw-label">ADC Engine</span>
+        <span class="hw-val">12-bit (0–4095)</span>
+      </div>
+      <div class="sidebar-hw-row">
+        <span class="hw-label">Baud Rate</span>
+        <span class="hw-val">115200 bps</span>
+      </div>
+      <div class="sidebar-hw-row">
+        <span class="hw-label">IR Safety</span>
+        <span class="hw-val" style="color:#10B981">5.0s Delay ACTIVE</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ─── MAIN APPLICATION VIEW ─────────────────────────────── -->
+  <main class="app-main">
+
+    <!-- Sticky Top Navigation Bar -->
+    <header class="app-topbar">
+      <div class="topbar-left">
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle Navigation Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <div class="topbar-breadcrumbs">
+          <span>FreshGuard Enterprise</span>
+          <span>/</span>
+          <span>SF-001 Cold Vault</span>
+          <span>/</span>
+          <span class="active">Live Telemetry</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <!-- Live ESP32 Connection Pill -->
+        <div class="connection-pill">
+          <span class="status-pulse-dot" id="connectionDot"></span>
+          <span id="connectionStatusText">ESP32 REST API Online</span>
+        </div>
+
+        <!-- Mode Toggle Slider -->
+        <div class="mode-pill-toggle" role="group" aria-label="System Operating Mode">
+          <button class="mode-pill-btn active" id="modeAutoBtn" type="button">AUTO</button>
+          <button class="mode-pill-btn" id="modeManualBtn" type="button">MANUAL</button>
+        </div>
+
+        <!-- Unit Switcher -->
+        <button class="nav-btn" id="unitToggleBtn" type="button" title="Toggle temperature unit">
+          <span id="unitLabel">°C / %</span>
+        </button>
+
+        <!-- Audio Alert Toggle -->
+        <button class="nav-btn" id="audioToggleBtn" type="button" aria-label="Toggle Sound Alerts" title="Toggle audio alerts">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        </button>
+
+        <!-- Quick Lab CTA -->
+        <button class="hero-btn-primary open-simulator-btn" id="openSimulatorBtnTop" type="button" style="padding:0.45rem 0.9rem;font-size:0.75rem">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Hardware Lab
+        </button>
+      </div>
+    </header>
+
+    <!-- Page Content Container -->
+    <div class="page-wrapper" id="overviewSection">
+
+      <!-- ═════════════════════════════════════════════════════════ -->
+      <!-- 1. HERO SECTION: 3D REACTIVE CHAMBER DIGITAL TWIN         -->
+      <!-- ═════════════════════════════════════════════════════════ -->
+      <section class="hero-section" id="heroSection" aria-label="Chamber 3D Digital Twin">
+        <!-- Left: Intelligence & Controls -->
+        <div class="hero-content">
+          <div class="hero-eyebrow">
+            <span class="hero-eyebrow-dot"></span>
+            ESP32 Autonomous Atmosphere Vault
+          </div>
+
+          <h1 class="hero-headline">
+            Smart <span class="hero-hl-green">Ethylene Mitigation</span> &amp;<br>
+            <span class="hero-hl-cyan">Cold-Storage</span> Precision
+          </h1>
+
+          <p class="hero-description">
+            Industrial post-harvest preservation chamber powered by ESP32 microcontrollers. 
+            Real-time multi-gas absorption, ultrasonic mist vaporization, and IR-interlocked fan purge.
+          </p>
+
+          <!-- Live Telemetry Row -->
+          <div class="hero-stats-row">
+            <div class="hero-stat-pill">
+              <span class="hero-stat-value" id="heroTemp">2.4°C</span>
+              <span class="hero-stat-label">Temperature</span>
+            </div>
+            <div class="hero-stat-pill">
+              <span class="hero-stat-value" id="heroHum">92%</span>
+              <span class="hero-stat-label">Humidity</span>
+            </div>
+            <div class="hero-stat-pill">
+              <span class="hero-stat-value" id="heroGas">215 ppm</span>
+              <span class="hero-stat-label">Ethylene</span>
+            </div>
+            <div class="hero-stat-pill">
+              <span class="hero-stat-value" id="heroDoor" style="color:#34D399">SECURED</span>
+              <span class="hero-stat-label">IR Interlock</span>
+            </div>
+          </div>
+
+          <!-- Hero Actions -->
+          <div class="hero-cta-row">
+            <button class="hero-btn-primary open-simulator-btn" id="openSimulatorBtnHero" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Hardware Lab &amp; IR Sim
+            </button>
+            <button class="hero-btn-secondary open-firmware-btn" id="openFirmwareModalBtnHero" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              ESP32 C++ Sketch
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: 3D Reactive Chamber Stage -->
+        <div class="hero-visual">
+          <div class="hero-glow-orb"></div>
+          <div class="hero-chamber-scene">
+            <!-- Produce Crate Tag -->
+            <div class="chamber-produce-badge" id="chamberPresetBadge">
+              <span id="chamberProduceCrate">🍎</span>
+              <span>Crisp Apples Storage</span>
+            </div>
+
+            <!-- Floating Sensor Badges -->
+            <div class="hero-float-badge hero-float-badge-1">
+              <div class="hero-float-badge-icon badge-icon-temp">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" stroke-width="2.5"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+              </div>
+              <div class="hero-float-badge-data">
+                <span class="hero-float-badge-val" id="statCardTemp">2.4°C</span>
+                <span class="hero-float-badge-lbl">DHT22 Temp</span>
+              </div>
+            </div>
+
+            <div class="hero-float-badge hero-float-badge-2">
+              <div class="hero-float-badge-icon badge-icon-hum">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22D3EE" stroke-width="2.5"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+              </div>
+              <div class="hero-float-badge-data">
+                <span class="hero-float-badge-val" id="statCardHum">92%</span>
+                <span class="hero-float-badge-lbl">Ultrasonic RH</span>
+              </div>
+            </div>
+
+            <div class="hero-float-badge hero-float-badge-3">
+              <div class="hero-float-badge-icon badge-icon-gas">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+              </div>
+              <div class="hero-float-badge-data">
+                <span class="hero-float-badge-val" id="statCardGas">215 ppm</span>
+                <span class="hero-float-badge-lbl">MQ Ethylene</span>
+              </div>
+            </div>
+
+            <div class="hero-float-badge hero-float-badge-4">
+              <div class="hero-float-badge-icon badge-icon-door">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+              </div>
+              <div class="hero-float-badge-data">
+                <span class="hero-float-badge-val" id="statCardDoor" style="color:#34D399">CLOSED</span>
+                <span class="hero-float-badge-lbl">IR Beam</span>
+              </div>
+            </div>
+
+            <!-- 3D Chamber Card with Parallax Tilt -->
+            <div class="hero-chamber-img-wrap" id="heroChamberImgWrap" title="Click to test door open / safety interlock">
+              <img src="chamber_3d.jpg" alt="3D Chamber Cross-Section" class="hero-chamber-img" id="heroChamberImg">
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-Time Ticker Footer -->
+        <div class="hero-status-ticker" aria-hidden="true">
+          <div class="hero-ticker-inner">
+            <span class="hero-ticker-item">TEMPERATURE <span class="val" id="tickTemp">2.4°C</span></span>
+            <span class="ticker-dot"></span>
+            <span class="hero-ticker-item">HUMIDITY <span class="val" id="tickHum">92%</span></span>
+            <span class="ticker-dot"></span>
+            <span class="hero-ticker-item">ETHYLENE GAS <span class="val" id="tickGas">215 ppm</span></span>
+            <span class="ticker-dot"></span>
+            <span class="hero-ticker-item">IR DOOR INTERLOCK <span class="val">CLOSED (SECURED)</span></span>
+            <span class="ticker-dot"></span>
+            <span class="hero-ticker-item">MODE <span class="val">AUTO CLIMATE ALGORITHM</span></span>
+            <span class="ticker-dot"></span>
+            <span class="hero-ticker-item">ACTIVE PRESET <span class="val">APPLES · TARGET 1–4°C</span></span>
+            <span class="ticker-dot"></span>
+            <span class="hero-ticker-item">CONTROLLER <span class="val">ESP32 WROOM-32 (12-bit ADC)</span></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════════════════════════════════════════════════════ -->
+      <!-- 2. SAFETY INTERLOCK BANNER & 5-SECOND COUNTDOWN           -->
+      <!-- ═════════════════════════════════════════════════════════ -->
+      <section class="state-banner-container state-normal" id="stateBanner" aria-live="polite">
+        <div class="banner-left">
+          <div class="state-icon-bubble" id="stateIconBubble">🛡️</div>
+          <div class="state-info-wrap">
+            <span class="state-badge" id="stateBadge">LIVE / NORMAL</span>
+            <h2 class="state-title" id="stateMainTitle">Chamber Secured — Automatic Climate Control Active</h2>
+            <p class="state-desc" id="stateDescription">
+              Door is CLOSED. IR safety beam engaged. Environmental monitoring and relay control running smoothly.
+            </p>
+          </div>
+        </div>
+
+        <!-- 5-Second Circular Radial Progress Timer -->
+        <div class="countdown-widget" id="countdownWidget">
+          <div class="countdown-dial-wrap">
+            <svg class="radial-svg" width="60" height="60" viewBox="0 0 60 60">
+              <circle class="circle-bg" cx="30" cy="30" r="24"/>
+              <circle class="circle-progress" id="timerProgressCircle" cx="30" cy="30" r="24"/>
+            </svg>
+            <span class="countdown-num" id="countdownNumber">5.0</span>
+          </div>
+          <div class="countdown-text-group">
+            <span class="cd-title">Safety Hold</span>
+            <span class="cd-sub">Stabilizing Atmosphere</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════════════════════════════════════════════════════ -->
+      <!-- 3. LIVE TELEMETRY METRIC CARDS (4-Column Balanced Grid)  -->
+      <!-- ═════════════════════════════════════════════════════════ -->
+      <div class="metrics-grid">
+        <!-- Temperature -->
+        <div class="metric-card" id="cardTemp">
+          <div class="metric-top-row">
+            <div class="metric-icon-wrap" style="background:rgba(59,130,246,0.15)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" stroke-width="2.5"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+            </div>
+            <span class="sensor-chip-tag" style="background:rgba(59,130,246,0.12);color:#60A5FA">DHT22 · GPIO 4</span>
+          </div>
+          <div class="metric-val-wrap">
+            <span class="metric-main-value" id="metricTempValue">2.4</span>
+            <span class="metric-unit-text">°C</span>
+          </div>
+          <div class="metric-range-bar-track">
+            <div class="metric-range-bar-fill" id="tempRangeFill" style="width:50%;background:linear-gradient(90deg,#3B82F6,#06B6D4)"></div>
+          </div>
+          <div class="metric-footer-row">
+            <span class="metric-footer-lbl">Target Range</span>
+            <span class="metric-footer-val" id="tempSafeRangeText">1.0 – 4.0 °C</span>
+          </div>
+        </div>
+
+        <!-- Relative Humidity -->
+        <div class="metric-card" id="cardHumidity">
+          <div class="metric-top-row">
+            <div class="metric-icon-wrap" style="background:rgba(6,182,212,0.15)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22D3EE" stroke-width="2.5"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+            </div>
+            <span class="sensor-chip-tag" style="background:rgba(6,182,212,0.12);color:#22D3EE">Ultrasonic Mist</span>
+          </div>
+          <div class="metric-val-wrap">
+            <span class="metric-main-value" id="metricHumValue">92</span>
+            <span class="metric-unit-text">% RH</span>
+          </div>
+          <div class="metric-range-bar-track">
+            <div class="metric-range-bar-fill" id="humRangeFill" style="width:84%;background:linear-gradient(90deg,#06B6D4,#6366F1)"></div>
+          </div>
+          <div class="metric-footer-row">
+            <span class="metric-footer-lbl">Target Range</span>
+            <span class="metric-footer-val" id="humSafeRangeText">90 – 95 %</span>
+          </div>
+        </div>
+
+        <!-- Ripening Gas (Ethylene / MQ-3) -->
+        <div class="metric-card" id="cardGas">
+          <div class="metric-top-row">
+            <div class="metric-icon-wrap" style="background:rgba(16,185,129,0.15)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+            </div>
+            <span class="sensor-chip-tag" id="metricGasTag" style="background:rgba(16,185,129,0.15);color:#34D399">Normal</span>
+          </div>
+          <div class="metric-val-wrap">
+            <span class="metric-main-value" id="metricGasValue">215</span>
+            <span class="metric-unit-text">ppm</span>
+          </div>
+          <div class="metric-range-bar-track">
+            <div class="metric-range-bar-fill" id="gasRangeFill" style="width:45%;background:linear-gradient(90deg,#10B981,#F59E0B)"></div>
+          </div>
+          <div class="metric-footer-row">
+            <span class="metric-footer-lbl">Ethylene Threshold</span>
+            <span class="metric-footer-val" id="gasSafeRangeText">Alert: 230 ppm</span>
+          </div>
+        </div>
+
+        <!-- Door Safety Sensor -->
+        <div class="metric-card" id="cardDoor">
+          <div class="metric-top-row">
+            <div class="metric-icon-wrap icon-door" id="doorMetricIconWrap" style="background:rgba(16,185,129,0.15)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+            </div>
+            <span class="sensor-chip-tag" style="background:rgba(16,185,129,0.12);color:#34D399">IR Beam · GPIO 14</span>
+          </div>
+          <div class="metric-val-wrap" style="margin-top:0.35rem">
+            <span class="door-status-pill door-closed-pill" id="metricDoorPill">
+              <span>✓</span> CLOSED
+            </span>
+          </div>
+          <div class="metric-range-bar-track">
+            <div class="metric-range-bar-fill" style="width:100%;background:#10B981"></div>
+          </div>
+          <div class="metric-footer-row">
+            <span class="metric-footer-lbl">Safety Interlock</span>
+            <span class="metric-footer-val">5.0s Delay Protected</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═════════════════════════════════════════════════════════ -->
+      <!-- 4. MAIN SPLIT GRID: CONTROLS & ACTUATORS vs INTELLIGENCE -->
+      <!-- ═════════════════════════════════════════════════════════ -->
+      <div class="dashboard-main-grid">
+
+        <!-- LEFT COLUMN: ACTUATORS, PRESETS & CUTAWAY PHYSICS -->
+        <div class="dashboard-left-stack">
+
+          <!-- 4A. Relay Actuators -->
+          <div class="glass-panel" id="actuatorsSection">
+            <div class="glass-panel-header">
+              <div class="section-title-group">
+                <div class="section-title-icon" style="background:rgba(16,185,129,0.12);color:#34D399">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                </div>
+                <div>
+                  <h3 class="section-title">Relay Actuators &amp; Interlocks</h3>
+                  <span class="section-subtitle">5 Controlled Output Relays · Door interlock active</span>
+                </div>
+              </div>
+              <span class="section-badge">ESP32 GPIO</span>
+            </div>
+
+            <div class="glass-panel-body">
+              <div class="actuators-grid">
+                <!-- Inlet Fan (Relay 1) -->
+                <div class="actuator-card active" id="inletFanCard">
+                  <div class="actuator-header-row">
+                    <span class="actuator-name">Inlet Fan</span>
+                    <span class="actuator-status-tag" id="inletFanStatusText">ON</span>
+                  </div>
+                  <div class="actuator-meta-row">
+                    <span class="gpio-tag">GPIO 16</span>
+                    <span class="interlock-warn-tag">DOOR PAUSED</span>
+                  </div>
+                  <div class="actuator-switch-wrap">
+                    <label class="switch-toggle" aria-label="Toggle Inlet Fan">
+                      <input type="checkbox" id="inletFanSwitch" checked disabled>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Outlet Fan (Relay 2) -->
+                <div class="actuator-card active" id="outletFanCard">
+                  <div class="actuator-header-row">
+                    <span class="actuator-name">Outlet Fan</span>
+                    <span class="actuator-status-tag" id="outletFanStatusText">ON</span>
+                  </div>
+                  <div class="actuator-meta-row">
+                    <span class="gpio-tag">GPIO 17</span>
+                    <span class="interlock-warn-tag">DOOR PAUSED</span>
+                  </div>
+                  <div class="actuator-switch-wrap">
+                    <label class="switch-toggle" aria-label="Toggle Outlet Fan">
+                      <input type="checkbox" id="outletFanSwitch" checked disabled>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Humidifier (Relay 3) -->
+                <div class="actuator-card" id="humidifierCard">
+                  <div class="actuator-header-row">
+                    <span class="actuator-name">Humidifier</span>
+                    <span class="actuator-status-tag" id="humidifierStatusText">OFF</span>
+                  </div>
+                  <div class="actuator-meta-row">
+                    <span class="gpio-tag">GPIO 5</span>
+                    <span class="interlock-warn-tag">DOOR PAUSED</span>
+                  </div>
+                  <div class="actuator-switch-wrap">
+                    <label class="switch-toggle" aria-label="Toggle Ultrasonic Humidifier">
+                      <input type="checkbox" id="humidifierSwitch" disabled>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- White Inspection LED (Relay 4) -->
+                <div class="actuator-card active" id="whiteLedCard">
+                  <div class="actuator-header-row">
+                    <span class="actuator-name">White Light</span>
+                    <span class="actuator-status-tag" id="whiteLedStatusText">ON</span>
+                  </div>
+                  <div class="actuator-meta-row">
+                    <span class="gpio-tag">GPIO 18</span>
+                    <span class="touch-tag">Touch TTP223</span>
+                  </div>
+                  <div class="actuator-switch-wrap">
+                    <label class="switch-toggle" aria-label="Toggle White LED">
+                      <input type="checkbox" id="whiteLedSwitch" checked>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- UV-C / Blue LED (Relay 5) -->
+                <div class="actuator-card" id="blueLedCard">
+                  <div class="actuator-header-row">
+                    <span class="actuator-name">450nm Antimicrobial</span>
+                    <span class="actuator-status-tag" id="blueLedStatusText">OFF</span>
+                  </div>
+                  <div class="actuator-meta-row">
+                    <span class="gpio-tag">GPIO 19</span>
+                    <span class="antimicro-tag">Mold Suppress</span>
+                  </div>
+                  <div class="actuator-switch-wrap">
+                    <label class="switch-toggle" aria-label="Toggle Blue LED">
+                      <input type="checkbox" id="blueLedSwitch" disabled>
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4B. Crop Presets Carousel -->
+          <div class="glass-panel" id="presetsSection">
+            <div class="glass-panel-header">
+              <div class="section-title-group">
+                <div class="section-title-icon" style="background:rgba(245,158,11,0.12);color:#FCD34D">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+                </div>
+                <div>
+                  <h3 class="section-title">Commercial Crop Presets</h3>
+                  <span class="section-subtitle">Select produce to load optimal storage setpoints</span>
+                </div>
+              </div>
+              <span class="section-badge" style="background:rgba(245,158,11,0.12);color:#FCD34D">Agronomic Library</span>
+            </div>
+
+            <div class="glass-panel-body">
+              <div class="presets-carousel" id="presetsCarousel">
+                <!-- Dynamically populated by app.js renderPresetsCarousel() -->
+              </div>
+            </div>
+          </div>
+
+          <!-- 4C. Precision Setpoint Controls -->
+          <div class="glass-panel" id="thresholdsSection">
+            <div class="glass-panel-header">
+              <div class="section-title-group">
+                <div class="section-title-icon" style="background:rgba(99,102,241,0.12);color:#818CF8">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
+                </div>
+                <div>
+                  <h3 class="section-title">Precision Setpoint Thresholds</h3>
+                  <span class="section-subtitle">Adjust autonomous trigger setpoints deployed to ESP32</span>
+                </div>
+              </div>
+              <button class="hero-btn-primary" id="saveThresholdsBtn" type="button" style="padding:0.4rem 0.85rem;font-size:0.75rem">
+                Save Setpoints
+              </button>
+            </div>
+
+            <div class="glass-panel-body">
+              <div class="thresholds-grid">
+                <div class="slider-control-group">
+                  <div class="slider-label-row">
+                    <span class="slider-name">Min Temperature</span>
+                    <span class="slider-val-badge" id="dispTempMin">1.0°C</span>
+                  </div>
+                  <input type="range" class="tech-slider" id="thresholdTempMin" min="-5" max="25" step="0.5" value="1">
+                </div>
+
+                <div class="slider-control-group">
+                  <div class="slider-label-row">
+                    <span class="slider-name">Max Temperature</span>
+                    <span class="slider-val-badge" id="dispTempMax">4.0°C</span>
+                  </div>
+                  <input type="range" class="tech-slider" id="thresholdTempMax" min="-5" max="25" step="0.5" value="4">
+                </div>
+
+                <div class="slider-control-group">
+                  <div class="slider-label-row">
+                    <span class="slider-name">Min Humidity</span>
+                    <span class="slider-val-badge" id="dispHumMin">90%</span>
+                  </div>
+                  <input type="range" class="tech-slider" id="thresholdHumMin" min="40" max="100" step="1" value="90">
+                </div>
+
+                <div class="slider-control-group">
+                  <div class="slider-label-row">
+                    <span class="slider-name">Max Humidity</span>
+                    <span class="slider-val-badge" id="dispHumMax">95%</span>
+                  </div>
+                  <input type="range" class="tech-slider" id="thresholdHumMax" min="40" max="100" step="1" value="95">
+                </div>
+
+                <div class="slider-control-group" style="grid-column: 1 / -1">
+                  <div class="slider-label-row">
+                    <span class="slider-name">Ripening Gas Alert Threshold (MQ Ethylene)</span>
+                    <span class="slider-val-badge" id="dispGasThresh">230 ppm</span>
+                  </div>
+                  <input type="range" class="tech-slider" id="thresholdGas" min="50" max="600" step="5" value="230">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4D. Interactive Chamber Physics Visualizer (Cutaway Twin) -->
+          <div class="chamber-section-wrapper" id="chamberCutawaySection">
+            <div class="chamber-header-row">
+              <div class="chamber-title-wrap">
+                <span class="chamber-title-text">Interactive Chamber Cutaway Twin</span>
+              </div>
+              <span class="chamber-preset-indicator">
+                <span id="activeCropSubtitle">Apples</span>
+              </span>
+            </div>
+
+            <!-- Visual Frame with Fan Physics, Fog & Door Swing -->
+            <div class="chamber-canvas-box">
+              <div class="chamber-grid-backdrop"></div>
+
+              <!-- Chamber Casing -->
+              <div class="chamber-outer-casing">
+                <div class="chamber-white-light-overlay" id="whiteLightOverlay"></div>
+                <div class="chamber-blue-light-overlay" id="blueLightOverlay"></div>
+                <div class="chamber-mist-container" id="mistCloudContainer"></div>
+
+                <!-- IR Safety Beam Line -->
+                <div class="ir-sensor-line" id="irBeamLine">
+                  <div class="ir-emitter-dot" id="irEmitterDot"></div>
+                  <div class="ir-beam-core"></div>
+                  <div class="ir-receiver-dot"></div>
+                </div>
+
+                <!-- Ceiling Lamps -->
+                <div class="ceiling-lamps-bar">
+                  <div class="lamp-bulb white" id="whiteLightBulb"></div>
+                  <div class="lamp-bulb blue" id="blueLightBulb"></div>
+                </div>
+
+                <!-- Interior Fruit Shelf -->
+                <div class="interior-produce-shelf">
+                  <div class="shelf-crate">
+                    <span class="produce-icon-display" id="produceIconDisplay">🍎</span>
+                  </div>
+                </div>
+
+                <!-- Probe Text Badges inside chamber -->
+                <div class="chamber-probes-layer">
+                  <div class="probe-badge top-left">
+                    <span>DHT22: </span><strong id="probeTempText">2.4°C</strong>
+                  </div>
+                  <div class="probe-badge top-right">
+                    <span>RH: </span><strong id="probeHumText">92%</strong>
+                  </div>
+                  <div class="probe-badge bottom-center">
+                    <span>MQ-3: </span><strong id="probeGasText">215 ppm</strong>
+                  </div>
+                </div>
+
+                <!-- Interactive 3D Swinging Door Panel -->
+                <div class="chamber-door-panel" id="chamberDoorPanel" title="Click to swing door open/close">
+                  <div class="door-glass-pane">
+                    <div class="door-handle"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Side Fans & Airflow Streams -->
+              <div class="chamber-fan-port inlet">
+                <div class="fan-spinner" id="inletFanSpinner"></div>
+                <div class="airflow-stream" id="airflowInletStream"></div>
+              </div>
+              <div class="chamber-fan-port outlet">
+                <div class="fan-spinner" id="outletFanSpinner"></div>
+                <div class="airflow-stream" id="airflowOutletStream"></div>
+              </div>
+
+              <!-- Touch Plate -->
+              <div class="chamber-touch-plate" id="touchPlate" title="Capacitive Touch (TTP223)">
+                <span>TOUCH</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: POST-HARVEST SCIENCE & ANALYTICS -->
+        <div class="dashboard-right-stack" id="intelligenceSection">
+
+          <!-- 4E. Post-Harvest Freshness Score & Shelf Life -->
+          <div class="glass-panel">
+            <div class="glass-panel-header">
+              <div class="section-title-group">
+                <div class="section-title-icon" style="background:rgba(16,185,129,0.12);color:#34D399">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/></svg>
+                </div>
+                <div>
+                  <h3 class="section-title">Freshness &amp; Shelf-Life Index</h3>
+                  <span class="section-subtitle">Real-time biological decay calculation</span>
+                </div>
+              </div>
+              <span class="section-badge" id="freshnessStage">OPTIMAL</span>
+            </div>
+
+            <div class="glass-panel-body">
+              <div class="freshness-radial-container">
+                <div class="radial-gauge-wrapper">
+                  <svg class="radial-gauge-svg" width="180" height="100" viewBox="0 0 180 100">
+                    <path class="gauge-track" d="M 10 90 A 80 80 0 0 1 170 90" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12" stroke-linecap="round"/>
+                    <path class="gauge-fill" id="freshnessArcPath" d="M 10 90 A 80 80 0 0 1 170 90" fill="none" stroke="#10B981" stroke-width="12" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="50"/>
+                  </svg>
+                  <div class="gauge-center-readout">
+                    <span class="gauge-score-number" id="freshnessScoreNumber">94</span>
+                    <span class="gauge-score-label">FRESHNESS</span>
+                  </div>
+                </div>
+
+                <div class="freshness-stage-indicator">
+                  <span class="stage-dot" id="freshnessStageDot"></span>
+                  <span class="stage-text" id="freshnessStageText">Prime Quality</span>
+                </div>
+              </div>
+
+              <!-- Shelf Life Projected Comparison -->
+              <div class="shelf-life-card">
+                <div class="shelf-life-top">
+                  <div>
+                    <span class="shelf-label">Estimated Shelf Life</span>
+                    <div class="shelf-days-readout">
+                      <span class="shelf-num" id="shelfLifeDaysValue">42</span>
+                      <span class="shelf-unit">Days</span>
+                    </div>
+                  </div>
+                  <div class="shelf-gain-badge" id="shelfGainBadge">
+                    <span id="shelfGainText">+28 days extended (+200%)</span>
+                  </div>
+                </div>
+                <div class="shelf-compare-bars">
+                  <div class="compare-row">
+                    <span class="compare-label">Ambient Room (25°C)</span>
+                    <div class="compare-track"><div class="compare-bar ambient" style="width:33%"></div></div>
+                    <span class="compare-val" id="shelfAmbientDays">14d</span>
+                  </div>
+                  <div class="compare-row">
+                    <span class="compare-label">FreshGuard Vault</span>
+                    <div class="compare-track"><div class="compare-bar vault" style="width:100%"></div></div>
+                    <span class="compare-val" id="shelfChamberDays">42d</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Agronomic Breakdown Table -->
+              <div class="agro-metrics-list">
+                <div class="agro-item">
+                  <span class="agro-label">Vapor Pressure Deficit (VPD)</span>
+                  <span class="agro-val" id="vpdValue">0.06 kPa</span>
+                </div>
+                <div class="agro-item">
+                  <span class="agro-label">Condensation Dew Point</span>
+                  <span class="agro-val" id="dewPointValue">1.2 °C</span>
+                </div>
+                <div class="agro-item">
+                  <span class="agro-label">Respiration Decay Multiplier</span>
+                  <span class="agro-val" id="decayRateValue">0.32×</span>
+                </div>
+                <div class="agro-item">
+                  <span class="agro-label">Ethylene Sensitivity</span>
+                  <span class="agro-val" id="ethSensitivityBadge" style="color:#FBBF24">Moderate</span>
+                </div>
+              </div>
+
+              <!-- Agronomist Farmer Tip -->
+              <div class="farmer-tip-box">
+                <span class="tip-icon">💡</span>
+                <p class="tip-text" id="farmerTipText">
+                  Apples produce ethylene at low-to-moderate rates. Keep vault below 4°C to suppress ethylene biosynthesis.
+                </p>
+              </div>
+
+              <!-- Blue Light Recommendation -->
+              <div class="blue-light-recommendation" id="blueLightRec" style="display:none">
+                <span class="rec-icon">🔬</span>
+                <span class="rec-text" id="blueLightRecText">Blue LED (450nm) recommended</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4F. Real-Time Telemetry Canvas Charts -->
+          <div class="glass-panel" id="chartsSection">
+            <div class="glass-panel-header">
+              <div class="section-title-group">
+                <div class="section-title-icon" style="background:rgba(6,182,212,0.12);color:#22D3EE">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                </div>
+                <div>
+                  <h3 class="section-title">Telemetry Analytics</h3>
+                  <span class="section-subtitle">Real-time hardware canvas monitoring</span>
+                </div>
+              </div>
+              <span class="section-badge">Live Canvas</span>
+            </div>
+
+            <div class="glass-panel-body" style="display:flex;flex-direction:column;gap:1.25rem">
+              <!-- Temperature & Humidity Chart -->
+              <div class="chart-wrapper-box">
+                <div class="chart-title-sub">Temperature &amp; Humidity Dynamics</div>
+                <canvas id="tempHumidityChart" height="180" style="width:100%;height:180px"></canvas>
+              </div>
+
+              <!-- Ripening Gas (Ethylene) Chart -->
+              <div class="chart-wrapper-box">
+                <div class="chart-title-sub">Ethylene Ripening Concentration (MQ ADC)</div>
+                <canvas id="gasRipeningChart" height="150" style="width:100%;height:150px"></canvas>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div><!-- end .dashboard-main-grid -->
+
+      <!-- ═════════════════════════════════════════════════════════ -->
+      <!-- 5. TELEMETRY HISTORY AUDIT LOG & DATA EXPORT              -->
+      <!-- ═════════════════════════════════════════════════════════ -->
+      <section class="glass-panel" id="historySection">
+        <div class="glass-panel-header">
+          <div class="section-title-group">
+            <div class="section-title-icon" style="background:rgba(99,102,241,0.12);color:#818CF8">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div>
+              <h3 class="section-title">Storage Environment Telemetry Log</h3>
+              <span class="section-subtitle">Continuous ESP32 audit trail</span>
+            </div>
+          </div>
+          <div class="table-actions-row">
+            <input type="text" class="tech-search-input" id="tableSearchInput" placeholder="Filter logs (e.g. DOOR, ALERT)...">
+            <button class="hero-btn-secondary" id="exportCsvBtn" type="button" style="padding:0.4rem 0.8rem;font-size:0.75rem">CSV</button>
+            <button class="hero-btn-secondary" id="exportJsonBtn" type="button" style="padding:0.4rem 0.8rem;font-size:0.75rem">JSON</button>
+          </div>
+        </div>
+
+        <div class="glass-panel-body" style="padding:0">
+          <div class="tech-table-container">
+            <table class="tech-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Temp (°C)</th>
+                  <th>Humidity (%)</th>
+                  <th>Ethylene (ppm)</th>
+                  <th>IR Door</th>
+                  <th>State</th>
+                  <th>Actuators</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody">
+                <!-- Dynamically populated by HistoryLogger -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- end .page-wrapper -->
+  </main>
+</div><!-- end .app-layout -->
+
+<!-- ═════════════════════════════════════════════════════════════ -->
+<!-- MOBILE FIXED BOTTOM NAVIGATION BAR                            -->
+<!-- ═════════════════════════════════════════════════════════════ -->
+<nav class="mobile-bottom-bar" id="mobileBottomNav" aria-label="Mobile Navigation">
+  <div class="mobile-bottom-bar-inner">
+    <a href="#overviewSection" class="mob-tab-btn active" id="mobNavHome">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Home</span>
+    </a>
+    <a href="#heroSection" class="mob-tab-btn" id="mobNavChamber">
+      <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+      <span>3D Twin</span>
+    </a>
+    <a href="#actuatorsSection" class="mob-tab-btn" id="mobNavControl">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      <span>Relays</span>
+    </a>
+    <a href="#presetsSection" class="mob-tab-btn" id="mobNavPresets">
+      <svg viewBox="0 0 24 24"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+      <span>Presets</span>
+    </a>
+    <button class="mob-tab-btn open-simulator-btn" id="mobNavLab" type="button">
+      <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      <span>Lab</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ═════════════════════════════════════════════════════════════ -->
+<!-- ESP32 HARDWARE LAB MODAL / DRAWER                             -->
+<!-- ═════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="simulatorDrawerModal" role="dialog" aria-modal="true" aria-labelledby="labModalTitle">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <div class="section-title-icon" style="background:rgba(245,158,11,0.12);color:#FCD34D">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <div>
+          <h3 class="modal-title" id="labModalTitle">ESP32 Hardware Simulation Lab</h3>
+          <span class="modal-subtitle">Interactive hardware triggers &amp; physical sensor injection</span>
+        </div>
+      </div>
+      <button class="modal-close close-simulator-btn" id="closeSimulatorBtn" aria-label="Close modal">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- 1. IR Door Sensor Trigger -->
+      <div class="modal-section-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+        IR Door Safety Interlock (Test 5.0s Restart Delay)
+      </div>
+      <p style="font-size:0.8rem;color:#94A3B8;margin-bottom:0.75rem">
+        Opening the door immediately trips GPIO 14, shutting off ventilation fans and humidifier to isolate the atmosphere. Closing starts the 5.0-second stabilization timer before resuming control.
+      </p>
+      <div class="sim-action-grid">
+        <button class="sim-btn btn-danger" id="simDoorOpenBtn" type="button">
+          <span class="sim-btn-name">🚨 Open Chamber Door</span>
+          <span class="sim-btn-desc">GPIO 14 = HIGH · Emergency fan cutoff</span>
+        </button>
+        <button class="sim-btn" id="simDoorCloseBtn" type="button">
+          <span class="sim-btn-name">✓ Close Chamber Door</span>
+          <span class="sim-btn-desc">GPIO 14 = LOW · Starts 5.0s delay</span>
+        </button>
+      </div>
+
+      <!-- 2. Capacitive Touch Sensor -->
+      <div class="modal-section-title" style="margin-top:1.25rem">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/></svg>
+        Capacitive Touch Plate (TTP223 · GPIO 13)
+      </div>
+      <p style="font-size:0.8rem;color:#94A3B8;margin-bottom:0.75rem">
+        Tapping the exterior stainless touch sensor toggles the White LED inspection lamp without entering the app.
+      </p>
+      <div class="sim-action-grid">
+        <button class="sim-btn btn-cyan" id="simTouchSensorBtn" type="button">
+          <span class="sim-btn-name">👆 Tap Capacitive Touch Sensor</span>
+          <span class="sim-btn-desc">Toggles Relay 4 (White LED)</span>
+        </button>
+      </div>
+
+      <!-- 3. Environmental Atmosphere Injections -->
+      <div class="modal-section-title" style="margin-top:1.25rem">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Environmental Stress Scenarios
+      </div>
+      <div class="sim-action-grid">
+        <button class="sim-btn btn-warning" id="simGasSpikeBtn" type="button">
+          <span class="sim-btn-name">Ripening Gas Spike</span>
+          <span class="sim-btn-desc">Injects 345 ppm ethylene burst</span>
+        </button>
+        <button class="sim-btn btn-warning" id="simTempSpikeBtn" type="button">
+          <span class="sim-btn-name">Temperature Spike</span>
+          <span class="sim-btn-desc">Raises chamber to 8.5°C</span>
+        </button>
+        <button class="sim-btn btn-warning" id="simLowHumBtn" type="button">
+          <span class="sim-btn-name">Humidity Deficit</span>
+          <span class="sim-btn-desc">Drops humidity to 68% RH</span>
+        </button>
+        <button class="sim-btn" id="simNormalBtn" type="button">
+          <span class="sim-btn-name">Reset Normal Baseline</span>
+          <span class="sim-btn-desc">Restores 2.4°C / 92% RH / 215 ppm</span>
+        </button>
+      </div>
+
+      <!-- 4. Virtual Serial Console -->
+      <div class="modal-section-title" style="margin-top:1.25rem">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        ESP32 Virtual Serial Monitor (115200 Baud)
+      </div>
+      <pre class="serial-console" id="simSerialOutput" style="max-height:160px;overflow-y:auto;font-family:var(--font-mono);font-size:0.75rem;padding:0.75rem;background:#03070A;border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:#A7F3D0"></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════ -->
+<!-- ESP32 FIRMWARE MODAL & PINOUT TABLE                           -->
+<!-- ═════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="firmwareModal" role="dialog" aria-modal="true" aria-labelledby="fwModalTitle">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <div class="section-title-icon" style="background:rgba(99,102,241,0.12);color:#818CF8">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <div>
+          <h3 class="modal-title" id="fwModalTitle">ESP32 Firmware Architecture</h3>
+          <span class="modal-subtitle">Arduino IDE sketch: esp32_freshguard.ino (v2.1.0)</span>
+        </div>
+      </div>
+      <button class="modal-close close-firmware-btn" id="closeFirmwareModalBtn" aria-label="Close modal">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem">
+        <div>
+          <span style="font-size:0.85rem;color:#E2E8F0;font-weight:700">Microcontroller Target:</span>
+          <span style="font-family:var(--font-mono);color:#34D399;font-weight:600;margin-left:0.4rem">ESP32-WROOM-32 (Xtensa Dual-Core 240MHz)</span>
+        </div>
+        <a href="firmware/esp32_freshguard.ino" download class="hero-btn-primary" style="padding:0.45rem 0.9rem;font-size:0.75rem;text-decoration:none">
+          Download .INO File
+        </a>
+      </div>
+
+      <div class="modal-section-title">Hardware Pinout Specification</div>
+      <table class="pinout-table" style="width:100%;border-collapse:collapse;font-size:0.78rem;margin-top:0.5rem">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.1);color:#94A3B8;text-align:left">
+            <th style="padding:0.5rem">GPIO</th>
+            <th style="padding:0.5rem">Function</th>
+            <th style="padding:0.5rem">Peripheral</th>
+            <th style="padding:0.5rem">Electrical Specs</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.5rem;font-family:var(--font-mono);color:#34D399">GPIO 4</td><td style="padding:0.5rem">DHT22 Data In</td><td style="padding:0.5rem">Temperature &amp; Humidity</td><td style="padding:0.5rem">Digital 1-Wire (4.7kΩ pullup)</td></tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.5rem;font-family:var(--font-mono);color:#34D399">GPIO 34</td><td style="padding:0.5rem">ADC1_CH6 In</td><td style="padding:0.5rem">MQ-3 Ripening Ethylene</td><td style="padding:0.5rem">12-bit Analog (0–3.3V, 0–4095)</td></tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.5rem;font-family:var(--font-mono);color:#34D399">GPIO 14</td><td style="padding:0.5rem">Digital Input</td><td style="padding:0.5rem">IR Safety Door Beam</td><td style="padding:0.5rem">Active HIGH when door opens</td></tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.5rem;font-family:var(--font-mono);color:#34D399">GPIO 13</td><td style="padding:0.5rem">Digital Input</td><td style="padding:0.5rem">TTP223 Capacitive Touch</td><td style="padding:0.5rem">Active HIGH pulse toggle</td></tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.5rem;font-family:var(--font-mono);color:#34D399">GPIO 16</td><td style="padding:0.5rem">Relay 1 Out</td><td style="padding:0.5rem">Inlet Intake Fan</td><td style="padding:0.5rem">12V 0.4A Brushless DC</td></tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.5rem;font-family:var(--font-mono);color:#34D399">GPIO 17</td><td style="padding:0.5rem">Relay 2 Out</td><td style="padding:0.5rem">Outlet Exhaust Fan</td><td style="padding:0.5rem">12V 0.4A Brushless DC</td></tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.5rem;font-family:var(--font-mono);color:#34D399">GPIO 5</td><td style="padding:0.5rem">Relay 3 Out</td><td style="padding:0.5rem">Ultrasonic Mist Generator</td><td style="padding:0.5rem">24V 1.2A 1.7MHz Transducer</td></tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.5rem;font-family:var(--font-mono);color:#34D399">GPIO 18</td><td style="padding:0.5rem">Relay 4 Out</td><td style="padding:0.5rem">White Inspection LED</td><td style="padding:0.5rem">12V 5000K Neutral White</td></tr>
+          <tr><td style="padding:0.5rem;font-family:var(--font-mono);color:#34D399">GPIO 19</td><td style="padding:0.5rem">Relay 5 Out</td><td style="padding:0.5rem">450nm Antimicrobial Blue</td><td style="padding:0.5rem">12V High-Power Monochromatic</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════ -->
+<!-- TOAST NOTIFICATIONS CONTAINER                                 -->
+<!-- ═════════════════════════════════════════════════════════════ -->
+<div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+<!-- ═════════════════════════════════════════════════════════════ -->
+<!-- ES MODULE APPLICATION BOOTSTRAP                               -->
+<!-- ═════════════════════════════════════════════════════════════ -->
+<script type="module" src="js/app.js"></script>
+
+<script>
+  // Mobile Hamburger Toggle & Smooth Anchor Navigation
+  document.addEventListener('DOMContentLoaded', () => {
+    const hamburger = document.getElementById('hamburgerBtn');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+
+    function toggleSidebar() {
+      const isOpen = sidebar.classList.toggle('open');
+      overlay.classList.toggle('open', isOpen);
+      document.body.style.overflow = isOpen ? 'hidden' : '';
+    }
+
+    if (hamburger) hamburger.addEventListener('click', toggleSidebar);
+    if (overlay) overlay.addEventListener('click', toggleSidebar);
+
+    // Close mobile sidebar on link click
+    document.querySelectorAll('.nav-item-link').forEach(link => {
+      link.addEventListener('click', () => {
+        if (sidebar.classList.contains('open')) toggleSidebar();
+      });
+    });
+
+    // Mobile Bottom Bar Active Tab Switching
+    const bottomTabs = document.querySelectorAll('.mob-tab-btn');
+    bottomTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        bottomTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
