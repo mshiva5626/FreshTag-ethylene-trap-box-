@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="theme-color" content="#faf8ff"/>
   <title>Smart FreshGuard — Botanical Precision IoT Cold-Storage Vault</title>
   <meta name="description" content="Autonomous post-harvest preservation chamber powered by ESP32 microcontrollers. Real-time multi-gas absorption, ultrasonic mist vaporization, and IR-interlocked fan purge."/>
   
@@ -92,25 +95,63 @@
   </script>
 
   <style>
-    @layer base {
-      html {
-        scroll-behavior: smooth;
-        -webkit-tap-highlight-color: transparent;
-      }
+    :root {
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+    }
+
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      touch-action: manipulation;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #faf8ff;
+      color: #131b2e;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow-x: hidden;
+      width: 100%;
+      max-width: 100vw;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* iPhone & Mobile safe padding rules */
+    @media (max-width: 1023px) {
       body {
-        margin: 0;
-        padding: 0;
-        background-color: #faf8ff;
-        color: #131b2e;
-        font-family: 'Inter', sans-serif;
-        overflow-x: hidden;
+        padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 16px)) !important;
       }
     }
-    
+    @media (min-width: 1024px) {
+      body {
+        padding-bottom: 0 !important;
+      }
+    }
+
+    /* Prevent iOS Safari from zooming in on input focus & ensure comfortable tap targets */
+    @media screen and (max-width: 768px) {
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+      button, a, input, select {
+        touch-action: manipulation;
+      }
+    }
+
     /* Custom Scrollbar for clean lab feel */
     ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
+      width: 5px;
+      height: 5px;
     }
     ::-webkit-scrollbar-track {
       background: #f2f3ff;
@@ -149,44 +190,45 @@
       height: 6px;
       border-radius: 999px;
       outline: none;
+      touch-action: pan-x;
     }
     input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
-      width: 18px;
-      height: 18px;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
       background: #006948;
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0, 105, 72, 0.4);
-      border: 2px solid #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 105, 72, 0.4);
+      border: 2.5px solid #ffffff;
       transition: transform 0.15s ease;
     }
-    input[type=range]::-webkit-slider-thumb:hover {
-      transform: scale(1.2);
+    input[type=range]::-webkit-slider-thumb:active {
+      transform: scale(1.25);
     }
   </style>
 </head>
-<body class="bg-surface font-sans text-on-surface antialiased pb-20 lg:pb-0">
+<body class="bg-surface font-sans text-on-surface antialiased overflow-x-hidden">
 
   <!-- =========================================================================
        1. MAIN HEADER / NAVIGATION BAR (Sticky Glassmorphic)
        ========================================================================= -->
-  <header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl border-b border-surface-container-high/60 shadow-[0_1px_8px_rgba(0,0,0,0.03)]">
-    <div class="h-20 w-full px-4 sm:px-6 lg:px-8 max-w-[1720px] mx-auto flex items-center justify-between gap-3">
+  <header class="fixed top-0 left-0 right-0 w-full z-50 bg-surface/90 backdrop-blur-xl border-b border-surface-container-high/60 shadow-[0_1px_8px_rgba(0,0,0,0.03)]" style="padding-top: env(safe-area-inset-top, 0px);">
+    <div class="h-16 sm:h-20 w-full px-3.5 sm:px-6 lg:px-8 max-w-[1720px] mx-auto flex items-center justify-between gap-2 sm:gap-3" style="padding-left: max(0.75rem, env(safe-area-inset-left, 0px)); padding-right: max(0.75rem, env(safe-area-inset-right, 0px));">
       
       <!-- Brand & Status Pill -->
-      <div class="flex items-center gap-3 lg:gap-5">
-        <a href="#" onclick="switchTab('overview', event)" class="flex items-center gap-2.5 group">
-          <img src="freshguard_logo.png" alt="Smart FreshGuard Logo" class="h-10 w-auto object-contain transition-transform group-hover:scale-105" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/aida-public/AB6AXuDzQMPNESDp6HX5YOQxAnFdM9v1LSZ1UVdPPW7RzaBiYijkufmPtU7oCMOO4t73TSpmub0e9MMDVQNJkzXpUWOoB6xjuo3-NVAEnBj3WoPAz6dFOB7hWpzVmhR6Vpq3babA_-t3N_u0TuSDRo5zBYsBgQcEsSx3UbMjHCMCmpc1Xk0_SuVFDKPvCIPnbsxujJkIQoWQHgVmaABT0wAirIRzPXTe00p8n4nBCmmSsCKTUA5Ko_kSm_k';"/>
-          <div class="flex flex-col">
-            <span class="text-base sm:text-lg font-bold text-on-surface leading-tight tracking-tight">Smart FreshGuard</span>
-            <span class="font-mono text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">Vault Core v4.2 • ESP32</span>
+      <div class="flex items-center gap-2 sm:gap-3 lg:gap-5 min-w-0">
+        <a href="#" onclick="switchTab('overview', event)" class="flex items-center gap-2 sm:gap-2.5 group min-w-0">
+          <img src="freshguard_logo.png" alt="Smart FreshGuard Logo" class="h-8 sm:h-10 w-auto object-contain flex-shrink-0 transition-transform group-hover:scale-105" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/aida-public/AB6AXuDzQMPNESDp6HX5YOQxAnFdM9v1LSZ1UVdPPW7RzaBiYijkufmPtU7oCMOO4t73TSpmub0e9MMDVQNJkzXpUWOoB6xjuo3-NVAEnBj3WoPAz6dFOB7hWpzVmhR6Vpq3babA_-t3N_u0TuSDRo5zBYsBgQcEsSx3UbMjHCMCmpc1Xk0_SuVFDKPvCIPnbsxujJkIQoWQHgVmaABT0wAirIRzPXTe00p8n4nBCmmSsCKTUA5Ko_kSm_k';"/>
+          <div class="flex flex-col min-w-0">
+            <span class="text-sm sm:text-lg font-bold text-on-surface leading-tight tracking-tight truncate">Smart FreshGuard</span>
+            <span class="font-mono text-[9px] sm:text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold truncate max-w-[110px] xs:max-w-[150px] sm:max-w-none">Vault Core v4.2 • ESP32</span>
           </div>
         </a>
 
         <!-- Hardware Status Badge (Desktop) -->
-        <div class="hidden xl:flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-full border border-surface-container-high shadow-sm text-xs font-mono">
+        <div class="hidden xl:flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-full border border-surface-container-high shadow-sm text-xs font-mono flex-shrink-0">
           <span class="relative flex h-2 w-2">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
             <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
@@ -198,7 +240,7 @@
           <span class="text-primary font-bold" id="top-ip-display">192.168.1.142</span>
         </div>
 
-        <div class="hidden 2xl:flex items-center gap-1.5 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-full text-xs font-mono font-bold text-primary">
+        <div class="hidden 2xl:flex items-center gap-1.5 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-full text-xs font-mono font-bold text-primary flex-shrink-0">
           <span class="material-symbols-outlined text-[15px]">verified_user</span>
           <span id="top-interlock-status">IR INTERLOCK: ENGAGED</span>
         </div>
@@ -221,21 +263,21 @@
       </nav>
 
       <!-- Right Actions: Order Button, Notifications & Profile -->
-      <div class="flex items-center gap-2 sm:gap-3">
-        <button type="button" onclick="triggerOrderModal()" class="inline-flex items-center justify-center bg-primary text-on-primary text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg shadow-sm hover:bg-primary-container hover:text-on-primary-container transition-all">
+      <div class="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+        <button type="button" onclick="triggerOrderModal()" class="hidden sm:inline-flex items-center justify-center bg-primary text-on-primary text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg shadow-sm hover:bg-primary-container hover:text-on-primary-container transition-all">
           <span class="material-symbols-outlined text-[18px] mr-1">shopping_bag</span>
           <span class="hidden sm:inline">Deploy Vault • </span>$649
         </button>
 
         <!-- Notification Bell -->
-        <button type="button" onclick="showToast('Active Notifications', 'System operating normally. 0 active atmospheric fault triggers.', 'notifications')" class="relative p-2 rounded-lg bg-surface-container-low hover:bg-surface-container-high text-on-surface-variant transition-colors" title="Notifications">
-          <span class="material-symbols-outlined text-[20px]">notifications</span>
+        <button type="button" onclick="showToast('Active Notifications', 'System operating normally. 0 active atmospheric fault triggers.', 'notifications')" class="relative p-2 rounded-lg bg-surface-container-low hover:bg-surface-container-high text-on-surface-variant transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center" title="Notifications">
+          <span class="material-symbols-outlined text-[19px] sm:text-[20px]">notifications</span>
           <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-surface"></span>
         </button>
 
         <!-- User Profile Pill -->
-        <button type="button" onclick="triggerAuthModal()" class="flex items-center gap-2 pl-1 p-1 sm:pr-2 rounded-lg hover:bg-surface-container-low transition-colors text-left" title="Account & Profile">
-          <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-xs shadow-sm">
+        <button type="button" onclick="triggerAuthModal()" class="flex items-center gap-2 pl-1 p-1 sm:pr-2 rounded-lg hover:bg-surface-container-low transition-colors text-left min-h-[40px]" title="Account & Profile">
+          <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-[11px] sm:text-xs shadow-sm flex-shrink-0">
             DT
           </div>
           <div class="hidden sm:flex flex-col">
@@ -245,8 +287,8 @@
         </button>
 
         <!-- Mobile Menu Toggle Button (Hamburger) -->
-        <button type="button" onclick="toggleMobileDrawer()" class="lg:hidden p-2 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-on-surface transition-colors">
-          <span class="material-symbols-outlined text-[22px]" id="mobile-menu-icon">menu</span>
+        <button type="button" onclick="toggleMobileDrawer()" class="lg:hidden p-2 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-on-surface transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center">
+          <span class="material-symbols-outlined text-[20px] sm:text-[22px]" id="mobile-menu-icon">menu</span>
         </button>
       </div>
     </div>
@@ -254,39 +296,39 @@
 
   <!-- Mobile Drawer Menu (Slide-out) -->
   <div id="mobile-drawer" class="fixed inset-0 z-40 bg-inverse-surface/50 backdrop-blur-sm lg:hidden hidden transition-opacity duration-300">
-    <div class="fixed top-20 right-0 w-72 h-[calc(100vh-80px)] bg-surface-container-lowest p-5 shadow-2xl flex flex-col justify-between border-l border-surface-container-high overflow-y-auto">
+    <div class="fixed right-0 max-w-[85vw] w-72 bg-surface-container-lowest p-5 shadow-2xl flex flex-col justify-between border-l border-surface-container-high overflow-y-auto" style="top: calc(4rem + env(safe-area-inset-top, 0px)); height: calc(100dvh - 4rem - env(safe-area-inset-top, 0px)); padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 16px));">
       <div class="flex flex-col gap-2">
         <span class="font-mono text-[11px] text-on-surface-variant uppercase tracking-wider font-bold px-2 py-1">Navigation</span>
-        <button onclick="switchTab('overview'); toggleMobileDrawer()" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold bg-primary-container text-on-primary-container text-left">
+        <button onclick="switchTab('overview'); toggleMobileDrawer()" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold bg-primary-container text-on-primary-container text-left min-h-[44px]">
           <span class="material-symbols-outlined text-[20px]">view_in_ar</span>
           Overview &amp; Chamber
         </button>
-        <button onclick="switchTab('telemetry'); toggleMobileDrawer()" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container-low text-left">
+        <button onclick="switchTab('telemetry'); toggleMobileDrawer()" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container-low text-left min-h-[44px]">
           <span class="material-symbols-outlined text-[20px]">sensors</span>
           Telemetry &amp; Actuators
         </button>
-        <button onclick="switchTab('pairing'); toggleMobileDrawer()" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container-low text-left">
+        <button onclick="switchTab('pairing'); toggleMobileDrawer()" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container-low text-left min-h-[44px]">
           <span class="material-symbols-outlined text-[20px]">wifi</span>
           Chamber Pairing / WiFi
         </button>
-        <button onclick="switchTab('calibration'); toggleMobileDrawer()" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container-low text-left">
+        <button onclick="switchTab('calibration'); toggleMobileDrawer()" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container-low text-left min-h-[44px]">
           <span class="material-symbols-outlined text-[20px]">tune</span>
           Calibration &amp; Settings
         </button>
         
         <div class="h-px bg-surface-container my-2"></div>
         <span class="font-mono text-[11px] text-on-surface-variant uppercase tracking-wider font-bold px-2 py-1">Quick Actions</span>
-        <button onclick="simulateDoorCycle(); toggleMobileDrawer()" class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold bg-tertiary-fixed text-on-tertiary-fixed text-left">
+        <button onclick="simulateDoorCycle(); toggleMobileDrawer()" class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold bg-tertiary-fixed text-on-tertiary-fixed text-left min-h-[42px]">
           <span class="material-symbols-outlined text-[18px]">sensors_off</span>
           Test IR Door Interlock
         </button>
-        <button onclick="emergencyPurge(); toggleMobileDrawer()" class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold bg-primary/10 text-primary text-left">
+        <button onclick="emergencyPurge(); toggleMobileDrawer()" class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold bg-primary/10 text-primary text-left min-h-[42px]">
           <span class="material-symbols-outlined text-[18px]">cyclone</span>
           Emergency Air Purge
         </button>
       </div>
 
-      <div class="p-3 bg-surface-container-low rounded-xl text-xs flex flex-col gap-1">
+      <div class="p-3 bg-surface-container-low rounded-xl text-xs flex flex-col gap-1 mt-4">
         <span class="font-mono font-bold text-on-surface">ESP32 Node: Active</span>
         <span class="text-on-surface-variant">Serial: FG-9942-X7</span>
         <span class="text-primary font-semibold">Heap: 184 KB Free</span>
@@ -297,8 +339,8 @@
   <!-- =========================================================================
        MAIN CONTENT CONTAINER
        ========================================================================= -->
-  <main class="w-full pt-20 min-h-[calc(100vh-80px)]">
-    <div class="w-full px-4 sm:px-6 lg:px-8 max-w-[1720px] mx-auto pb-12">
+  <main class="w-full min-h-[100dvh]" style="padding-top: calc(4.25rem + env(safe-area-inset-top, 0px)); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);">
+    <div class="w-full px-3.5 sm:px-6 lg:px-8 max-w-[1720px] mx-auto pb-10 sm:pb-12">
 
       <!-- =====================================================================
            VIEW 1: OVERVIEW & CHAMBER (SHOWCASE)
@@ -344,20 +386,20 @@
             <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-secondary-container/20 rounded-full blur-3xl pointer-events-none"></div>
 
             <!-- Top Twin Bar Controls -->
-            <div class="flex flex-wrap items-center justify-between z-10 pb-3 gap-2">
-              <div class="flex items-center gap-2">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between z-10 pb-3 gap-2.5">
+              <div class="flex items-center gap-2 flex-wrap">
                 <span class="material-symbols-outlined text-primary text-[22px]">view_in_ar</span>
-                <span class="text-base sm:text-lg font-bold text-on-surface">Hardware Vault Digital Twin</span>
-                <span class="px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-mono text-[11px] font-bold">ESP32 1.2s Real-Time</span>
+                <span class="text-sm sm:text-lg font-bold text-on-surface">Hardware Vault Digital Twin</span>
+                <span class="px-2 sm:px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-mono text-[10px] sm:text-[11px] font-bold">ESP32 1.2s Real-Time</span>
               </div>
 
               <!-- Quick Lighting Toggles -->
-              <div class="flex items-center gap-1.5 bg-surface-container-low p-1 rounded-xl border border-surface-container-high shadow-xs">
-                <button type="button" class="px-3 py-1 rounded-lg font-mono text-xs flex items-center gap-1.5 bg-surface-container-lowest text-on-surface shadow-xs transition-all hover:bg-surface-container-high" id="btn-toggle-white-led" onclick="toggleWhiteLED()">
+              <div class="grid grid-cols-2 sm:flex items-center gap-1.5 bg-surface-container-low p-1 rounded-xl border border-surface-container-high shadow-xs w-full sm:w-auto">
+                <button type="button" class="px-2.5 sm:px-3 py-1.5 rounded-lg font-mono text-[11px] sm:text-xs flex items-center justify-center gap-1.5 bg-surface-container-lowest text-on-surface shadow-xs transition-all hover:bg-surface-container-high" id="btn-toggle-white-led" onclick="toggleWhiteLED()">
                   <span class="material-symbols-outlined text-[15px] text-primary" id="icon-white-led">wb_sunny</span>
                   <span>White LED: <strong id="lbl-white-led">ON</strong></span>
                 </button>
-                <button type="button" class="px-3 py-1 rounded-lg font-mono text-xs flex items-center gap-1.5 bg-surface-container-lowest text-on-surface shadow-xs transition-all hover:bg-surface-container-high" id="btn-toggle-blue-uv" onclick="toggleBlueUV()">
+                <button type="button" class="px-2.5 sm:px-3 py-1.5 rounded-lg font-mono text-[11px] sm:text-xs flex items-center justify-center gap-1.5 bg-surface-container-lowest text-on-surface shadow-xs transition-all hover:bg-surface-container-high" id="btn-toggle-blue-uv" onclick="toggleBlueUV()">
                   <span class="material-symbols-outlined text-[15px] text-secondary" id="icon-blue-uv">flare</span>
                   <span>450nm Blue: <strong id="lbl-blue-uv">ACTIVE</strong></span>
                 </button>
@@ -365,7 +407,7 @@
             </div>
 
             <!-- 3D Chamber Canvas Viewport with Physical Device Image -->
-            <div class="relative w-full h-[320px] sm:h-[400px] lg:h-[440px] rounded-xl overflow-hidden bg-gradient-to-b from-surface-container-low via-surface-container/60 to-surface-container flex items-center justify-center cursor-crosshair border border-surface-container-high" id="twin-viewport">
+            <div class="relative w-full h-[260px] sm:h-[360px] lg:h-[440px] rounded-xl overflow-hidden bg-gradient-to-b from-surface-container-low via-surface-container/60 to-surface-container flex items-center justify-center cursor-crosshair border border-surface-container-high" id="twin-viewport">
               
               <!-- Dynamic Lighting Halo Overlays -->
               <div class="absolute inset-0 bg-primary/10 mix-blend-screen pointer-events-none transition-opacity duration-500 opacity-90" id="halo-overlay"></div>
@@ -375,23 +417,23 @@
               <img src="chamber_device.png" alt="Smart FreshGuard physical preservation chamber with glowing emerald bezel" class="h-full w-auto max-w-full object-contain drop-shadow-2xl transition-transform duration-200 ease-out z-10 pointer-events-none" id="chamber-device-img" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/aida-public/AB6AXuBvYyOmdgjmgxDthrqhh7gdfGFTwaJ3XLksOLfKOIC6VHegzb1BJdeGh7AYlCJNClo650HQz3RJNLiDTe3QrgFUUcQRER1WJgJm22weFEqK4Tv4Qzt3ih7fqlcBttk8HQx1nJca8msZ8M9nYkGlbLmeW_MzwbjGpW_wvJF6MVVwdOgSW16BLub24KzvEjzPYbCLWgr3szldTCbmHCcTsPeOMMeRHSr93SW2LtcSyZa8epyGaNO3pFY';"/>
 
               <!-- Floating HUD Badges over Device -->
-              <div class="absolute top-4 left-4 z-20 flex flex-col gap-2 pointer-events-none">
-                <div class="bg-inverse-surface/85 backdrop-blur-md px-3 py-1.5 rounded-lg text-inverse-on-surface font-mono text-[11px] font-semibold flex items-center gap-2 shadow-sm border border-white/10">
-                  <span class="h-2 w-2 rounded-full bg-primary-fixed animate-pulse"></span>
-                  <span>CHAMBER PRESSURE: +2.1 Pa (ISO Clean)</span>
+              <div class="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 z-20 flex flex-col gap-1.5 sm:gap-2 pointer-events-none max-w-[70%] sm:max-w-none">
+                <div class="bg-inverse-surface/85 backdrop-blur-md px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-inverse-on-surface font-mono text-[9px] sm:text-[11px] font-semibold flex items-center gap-1.5 sm:gap-2 shadow-sm border border-white/10 truncate">
+                  <span class="h-2 w-2 rounded-full bg-primary-fixed animate-pulse flex-shrink-0"></span>
+                  <span class="truncate">PRESSURE: +2.1 Pa (Clean)</span>
                 </div>
-                <div class="bg-inverse-surface/85 backdrop-blur-md px-3 py-1.5 rounded-lg text-inverse-on-surface font-mono text-[11px] font-semibold flex items-center gap-2 shadow-sm border border-white/10">
-                  <span class="material-symbols-outlined text-[14px] text-secondary-fixed">air</span>
-                  <span id="hud-fan-state">INLET: 68% | PURGE: ACTIVE</span>
+                <div class="bg-inverse-surface/85 backdrop-blur-md px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-inverse-on-surface font-mono text-[9px] sm:text-[11px] font-semibold flex items-center gap-1.5 sm:gap-2 shadow-sm border border-white/10 truncate">
+                  <span class="material-symbols-outlined text-[13px] sm:text-[14px] text-secondary-fixed flex-shrink-0">air</span>
+                  <span id="hud-fan-state" class="truncate">INLET: 68% | PURGE: ACTIVE</span>
                 </div>
               </div>
 
-              <div class="absolute bottom-4 right-4 z-20 flex flex-col items-end gap-1.5">
-                <div class="bg-primary px-3 py-1.5 rounded-lg text-on-primary font-mono text-xs font-bold flex items-center gap-2 shadow-lg transition-colors cursor-pointer" id="door-hud-pill" onclick="simulateDoorCycle()">
-                  <span class="material-symbols-outlined text-[16px]">verified_user</span>
-                  <span id="door-hud-text">IR INTERLOCK: ARMED</span>
+              <div class="absolute bottom-2.5 sm:bottom-4 right-2.5 sm:right-4 z-20 flex flex-col items-end gap-1">
+                <div class="bg-primary px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-on-primary font-mono text-[10px] sm:text-xs font-bold flex items-center gap-1.5 shadow-lg transition-colors cursor-pointer" id="door-hud-pill" onclick="simulateDoorCycle()">
+                  <span class="material-symbols-outlined text-[14px] sm:text-[16px]">verified_user</span>
+                  <span id="door-hud-text">IR: ARMED</span>
                 </div>
-                <span class="font-mono text-[10px] text-on-surface-variant bg-surface-container-lowest/90 px-2 py-0.5 rounded-md backdrop-blur-sm shadow-xs hidden sm:inline">
+                <span class="font-mono text-[9px] sm:text-[10px] text-on-surface-variant bg-surface-container-lowest/90 px-2 py-0.5 rounded-md backdrop-blur-sm shadow-xs hidden sm:inline">
                   Move mouse / touch to tilt Digital Twin
                 </span>
               </div>
@@ -578,81 +620,81 @@
             </div>
           </div>
 
-          <!-- 5 Columns Telemetry Grid -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <!-- 5 Columns Telemetry Grid (Balanced 2-col on mobile, 5-col on desktop) -->
+          <div class="grid grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-4">
             
-            <!-- Sensor 1: DHT22 Temperature -->
-            <div class="bg-surface-container-lowest p-4 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
+            <!-- Sensor 1: DHT11 Temperature -->
+            <div class="bg-surface-container-lowest p-3.5 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
               <div class="flex items-center justify-between">
-                <div class="flex items-center gap-1.5">
-                  <span class="material-symbols-outlined text-secondary text-[18px]">thermostat</span>
-                  <span class="font-mono text-[11px] text-on-surface-variant uppercase font-bold">DHT22 Temp</span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="material-symbols-outlined text-secondary text-[18px] flex-shrink-0">thermostat</span>
+                  <span class="font-mono text-[10px] sm:text-[11px] text-on-surface-variant uppercase font-bold truncate">DHT11 Temp</span>
                 </div>
-                <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono text-[10px] font-bold">TARGET RANGE</span>
+                <span class="px-1.5 sm:px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono text-[9px] sm:text-[10px] font-bold flex-shrink-0">TARGET</span>
               </div>
-              <div class="my-3">
+              <div class="my-2.5 sm:my-3">
                 <div class="flex items-baseline gap-1">
-                  <span class="font-mono text-3xl sm:text-4xl text-on-surface font-extrabold tracking-tight" id="val-temp">2.4</span>
-                  <span class="text-lg font-bold text-on-surface-variant">°C</span>
+                  <span class="font-mono text-2xl sm:text-3xl lg:text-4xl text-on-surface font-extrabold tracking-tight" id="val-temp">2.4</span>
+                  <span class="text-base sm:text-lg font-bold text-on-surface-variant">°C</span>
                 </div>
-                <span class="text-xs text-on-surface-variant mt-1 block">Target Setpoint: 1.0°C – 4.0°C</span>
+                <span class="text-[11px] sm:text-xs text-on-surface-variant mt-0.5 block truncate">Target: 1.0°C – 4.0°C</span>
               </div>
               <div class="w-full pt-1">
-                <svg class="w-full h-8 text-secondary" fill="none" preserveaspectratio="none" viewbox="0 0 100 24">
+                <svg class="w-full h-7 sm:h-8 text-secondary" fill="none" preserveaspectratio="none" viewbox="0 0 100 24">
                   <path d="M0,18 Q15,16 30,17 T60,11 T85,13 T100,12" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2.5"></path>
                   <circle cx="100" cy="12" fill="currentColor" r="3"></circle>
                 </svg>
-                <div class="flex justify-between font-mono text-[10px] text-on-surface-variant mt-1">
+                <div class="flex justify-between font-mono text-[9px] sm:text-[10px] text-on-surface-variant mt-1">
                   <span>-30m</span>
-                  <span>Delta: -0.2°C</span>
+                  <span>Delta: -0.2°</span>
                   <span>Now</span>
                 </div>
               </div>
             </div>
 
-            <!-- Sensor 2: DHT22 Humidity -->
-            <div class="bg-surface-container-lowest p-4 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
+            <!-- Sensor 2: DHT11 Humidity -->
+            <div class="bg-surface-container-lowest p-3.5 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
               <div class="flex items-center justify-between">
-                <div class="flex items-center gap-1.5">
-                  <span class="material-symbols-outlined text-secondary text-[18px]">humidity_high</span>
-                  <span class="font-mono text-[11px] text-on-surface-variant uppercase font-bold">DHT22 RH</span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="material-symbols-outlined text-secondary text-[18px] flex-shrink-0">humidity_high</span>
+                  <span class="font-mono text-[10px] sm:text-[11px] text-on-surface-variant uppercase font-bold truncate">DHT11 RH</span>
                 </div>
-                <span class="px-2 py-0.5 rounded-full bg-secondary/15 text-secondary font-mono text-[10px] font-bold" id="badge-hum-mode">MIST ON</span>
+                <span class="px-1.5 sm:px-2 py-0.5 rounded-full bg-secondary/15 text-secondary font-mono text-[9px] sm:text-[10px] font-bold flex-shrink-0" id="badge-hum-mode">MIST ON</span>
               </div>
-              <div class="my-3">
+              <div class="my-2.5 sm:my-3">
                 <div class="flex items-baseline gap-1">
-                  <span class="font-mono text-3xl sm:text-4xl text-on-surface font-extrabold tracking-tight" id="val-humidity">92.0</span>
-                  <span class="text-lg font-bold text-on-surface-variant">%</span>
+                  <span class="font-mono text-2xl sm:text-3xl lg:text-4xl text-on-surface font-extrabold tracking-tight" id="val-humidity">92.0</span>
+                  <span class="text-base sm:text-lg font-bold text-on-surface-variant">%</span>
                 </div>
-                <span class="text-xs text-on-surface-variant mt-1 block">Ultrasonic Humidifier: Micro-Regulating</span>
+                <span class="text-[11px] sm:text-xs text-on-surface-variant mt-0.5 block truncate">Ultrasonic Mist: Active</span>
               </div>
               <div class="w-full pt-1">
-                <svg class="w-full h-8 text-primary" fill="none" preserveaspectratio="none" viewbox="0 0 100 24">
+                <svg class="w-full h-7 sm:h-8 text-primary" fill="none" preserveaspectratio="none" viewbox="0 0 100 24">
                   <path d="M0,14 Q20,12 40,16 T75,9 T90,8 T100,7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2.5"></path>
                   <circle cx="100" cy="7" fill="currentColor" r="3"></circle>
                 </svg>
-                <div class="flex justify-between font-mono text-[10px] text-on-surface-variant mt-1">
+                <div class="flex justify-between font-mono text-[9px] sm:text-[10px] text-on-surface-variant mt-1">
                   <span>Target: 90-95%</span>
-                  <span class="text-primary font-bold">VPD 0.12 kPa</span>
+                  <span class="text-primary font-bold">0.12 kPa</span>
                 </div>
               </div>
             </div>
 
             <!-- Sensor 3: MQ Ethylene Gas -->
-            <div class="bg-surface-container-lowest p-4 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
+            <div class="bg-surface-container-lowest p-3.5 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
               <div class="flex items-center justify-between">
-                <div class="flex items-center gap-1.5">
-                  <span class="material-symbols-outlined text-primary text-[18px]">detector_smoke</span>
-                  <span class="font-mono text-[11px] text-on-surface-variant uppercase font-bold">MQ C2H4 Gas</span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="material-symbols-outlined text-primary text-[18px] flex-shrink-0">detector_smoke</span>
+                  <span class="font-mono text-[10px] sm:text-[11px] text-on-surface-variant uppercase font-bold truncate">MQ C2H4</span>
                 </div>
-                <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono text-[10px] font-bold" id="badge-ethylene">OPTIMAL</span>
+                <span class="px-1.5 sm:px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono text-[9px] sm:text-[10px] font-bold flex-shrink-0" id="badge-ethylene">OPTIMAL</span>
               </div>
-              <div class="my-3">
+              <div class="my-2.5 sm:my-3">
                 <div class="flex items-baseline gap-1">
-                  <span class="font-mono text-3xl sm:text-4xl text-primary font-extrabold tracking-tight" id="val-ethylene">215</span>
-                  <span class="text-sm font-bold text-on-surface-variant">PPM</span>
+                  <span class="font-mono text-2xl sm:text-3xl lg:text-4xl text-primary font-extrabold tracking-tight" id="val-ethylene">215</span>
+                  <span class="text-xs sm:text-sm font-bold text-on-surface-variant">PPM</span>
                 </div>
-                <span class="text-xs text-on-surface-variant mt-1 block">Threshold limit: &lt; 250 PPM</span>
+                <span class="text-[11px] sm:text-xs text-on-surface-variant mt-0.5 block truncate">Threshold: &lt; 250 PPM</span>
               </div>
               <div class="w-full pt-1">
                 <div class="w-full h-2 rounded-full bg-surface-container-high overflow-hidden flex">
@@ -660,55 +702,55 @@
                   <div class="h-full bg-tertiary opacity-30" style="width: 25%"></div>
                   <div class="h-full bg-error opacity-40" style="width: 30%"></div>
                 </div>
-                <div class="flex justify-between font-mono text-[10px] text-on-surface-variant mt-1">
-                  <span>0 PPM</span>
+                <div class="flex justify-between font-mono text-[9px] sm:text-[10px] text-on-surface-variant mt-1">
+                  <span>0</span>
                   <span>Alert: 250</span>
-                  <span>500 PPM</span>
+                  <span>500</span>
                 </div>
               </div>
             </div>
 
             <!-- Sensor 4: IR Door Interlock -->
-            <div class="bg-surface-container-lowest p-4 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between transition-all duration-300" id="card-door-interlock">
+            <div class="bg-surface-container-lowest p-3.5 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between transition-all duration-300" id="card-door-interlock">
               <div class="flex items-center justify-between">
-                <div class="flex items-center gap-1.5">
-                  <span class="material-symbols-outlined text-primary text-[18px]" id="icon-door-status">door_front</span>
-                  <span class="font-mono text-[11px] text-on-surface-variant uppercase font-bold">IR Safety Interlock</span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="material-symbols-outlined text-primary text-[18px] flex-shrink-0" id="icon-door-status">door_front</span>
+                  <span class="font-mono text-[10px] sm:text-[11px] text-on-surface-variant uppercase font-bold truncate">IR Interlock</span>
                 </div>
-                <span class="px-2 py-0.5 rounded-full bg-primary text-on-primary font-mono text-[10px] font-bold" id="badge-door-state">CLOSED</span>
+                <span class="px-1.5 sm:px-2 py-0.5 rounded-full bg-primary text-on-primary font-mono text-[9px] sm:text-[10px] font-bold flex-shrink-0" id="badge-door-state">CLOSED</span>
               </div>
-              <div class="my-3">
+              <div class="my-2.5 sm:my-3">
                 <div class="flex items-baseline gap-1">
-                  <span class="text-base sm:text-lg font-bold text-on-surface" id="val-door-text">SECURE &amp; SEALED</span>
+                  <span class="text-sm sm:text-base lg:text-lg font-bold text-on-surface truncate" id="val-door-text">SECURE &amp; SEALED</span>
                 </div>
-                <span class="text-xs text-on-surface-variant mt-1 block" id="val-door-subtext">Phototransistor IR Beam Unbroken</span>
+                <span class="text-[11px] sm:text-xs text-on-surface-variant mt-0.5 block truncate" id="val-door-subtext">IR Beam Unbroken</span>
               </div>
               <div class="pt-1">
-                <button type="button" class="w-full py-2 px-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-surface-container-highest" id="btn-test-door" onclick="simulateDoorCycle()">
-                  <span class="material-symbols-outlined text-[16px]">sensors_off</span>
-                  <span id="btn-door-lbl">Test Open Door (5s Cutoff)</span>
+                <button type="button" class="w-full py-1.5 sm:py-2 px-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-mono text-[10px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 border border-surface-container-highest min-h-[36px]" id="btn-test-door" onclick="simulateDoorCycle()">
+                  <span class="material-symbols-outlined text-[15px] sm:text-[16px]">sensors_off</span>
+                  <span id="btn-door-lbl" class="truncate">Test Door (5s)</span>
                 </button>
               </div>
             </div>
 
-            <!-- Sensor 5: TTP223 Capacitive Bezel Touch -->
-            <div class="bg-surface-container-lowest p-4 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
+            <!-- Sensor 5: TTP223 Capacitive Bezel Touch (Spans 2 cols on mobile) -->
+            <div class="col-span-2 lg:col-span-1 bg-surface-container-lowest p-3.5 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
               <div class="flex items-center justify-between">
-                <div class="flex items-center gap-1.5">
-                  <span class="material-symbols-outlined text-secondary text-[18px]">touch_app</span>
-                  <span class="font-mono text-[11px] text-on-surface-variant uppercase font-bold">TTP223 Touch</span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="material-symbols-outlined text-secondary text-[18px] flex-shrink-0">touch_app</span>
+                  <span class="font-mono text-[10px] sm:text-[11px] text-on-surface-variant uppercase font-bold truncate">TTP223 Touch</span>
                 </div>
-                <span class="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface font-mono text-[10px] font-bold">ACTIVE</span>
+                <span class="px-1.5 sm:px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface font-mono text-[9px] sm:text-[10px] font-bold flex-shrink-0">ACTIVE</span>
               </div>
-              <div class="my-3">
+              <div class="my-2.5 sm:my-3">
                 <div class="flex items-baseline gap-1">
-                  <span class="text-base sm:text-lg font-bold text-on-surface">Bezel Touch Ready</span>
+                  <span class="text-sm sm:text-base lg:text-lg font-bold text-on-surface">Bezel Touch Ready</span>
                 </div>
-                <span class="text-xs text-on-surface-variant mt-1 block">Tap chamber bezel to cycle ambient modes</span>
+                <span class="text-[11px] sm:text-xs text-on-surface-variant mt-0.5 block">Tap chamber bezel to cycle ambient modes</span>
               </div>
               <div class="pt-1">
-                <button type="button" class="w-full py-2 px-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-primary/20" onclick="simulateBezelTouch()">
-                  <span class="material-symbols-outlined text-[16px]">touch_app</span>
+                <button type="button" class="w-full py-1.5 sm:py-2 px-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary font-mono text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-primary/20 min-h-[36px]" onclick="simulateBezelTouch()">
+                  <span class="material-symbols-outlined text-[15px] sm:text-[16px]">touch_app</span>
                   <span>Simulate Bezel Tap</span>
                 </button>
               </div>
@@ -734,13 +776,13 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 sm:gap-4">
             
             <!-- Actuator 1: Inlet Fan -->
-            <div class="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
+            <div class="bg-surface-container-lowest p-4 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2.5">
-                  <div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                     <span class="material-symbols-outlined text-[22px]" id="fan-inlet-icon">mode_fan</span>
                   </div>
                   <div>
@@ -750,7 +792,7 @@
                 </div>
                 <span class="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-mono text-[10px] font-bold" id="badge-fan-inlet">AUTO</span>
               </div>
-              <div class="my-4">
+              <div class="my-3 sm:my-4">
                 <div class="flex items-baseline justify-between font-mono text-xs">
                   <span class="text-on-surface-variant font-medium">PWM Speed</span>
                   <span class="text-on-surface font-bold text-sm" id="speed-fan-inlet">68% • 1,820 RPM</span>
@@ -764,10 +806,10 @@
             </div>
 
             <!-- Actuator 2: Outlet Purge Fan -->
-            <div class="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
+            <div class="bg-surface-container-lowest p-4 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2.5">
-                  <div class="w-9 h-9 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center">
+                  <div class="w-9 h-9 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center flex-shrink-0">
                     <span class="material-symbols-outlined text-[22px]" id="fan-outlet-icon">air</span>
                   </div>
                   <div>
@@ -777,7 +819,7 @@
                 </div>
                 <span class="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-mono text-[10px] font-bold" id="badge-fan-outlet">ACTIVE</span>
               </div>
-              <div class="my-4">
+              <div class="my-3 sm:my-4">
                 <div class="flex items-baseline justify-between font-mono text-xs">
                   <span class="text-on-surface-variant font-medium">PWM Speed</span>
                   <span class="text-on-surface font-bold text-sm" id="speed-fan-outlet">52% • 1,400 RPM</span>
@@ -791,10 +833,10 @@
             </div>
 
             <!-- Actuator 3: Ultrasonic Humidifier -->
-            <div class="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
+            <div class="bg-surface-container-lowest p-4 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2.5">
-                  <div class="w-9 h-9 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center">
+                  <div class="w-9 h-9 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center flex-shrink-0">
                     <span class="material-symbols-outlined text-[22px]">water_drop</span>
                   </div>
                   <div>
@@ -804,12 +846,12 @@
                 </div>
                 <span class="px-2.5 py-0.5 rounded-full bg-secondary/15 text-secondary font-mono text-[10px] font-bold" id="badge-misting">100% REGULATING</span>
               </div>
-              <div class="my-4 flex flex-col gap-2">
+              <div class="my-3 sm:my-4 flex flex-col gap-2">
                 <div class="flex items-center justify-between font-mono text-xs">
                   <span class="text-on-surface-variant">Mist Duty Cycle</span>
                   <span class="text-on-surface font-bold text-sm" id="lbl-mist-duty">100% (High Density)</span>
                 </div>
-                <button type="button" class="w-full py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest font-mono text-xs text-on-surface font-bold transition-all border border-surface-container-highest" id="btn-toggle-mister" onclick="toggleMister()">
+                <button type="button" class="w-full py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest font-mono text-xs text-on-surface font-bold transition-all border border-surface-container-highest min-h-[38px]" id="btn-toggle-mister" onclick="toggleMister()">
                   Toggle Pulse Mode
                 </button>
               </div>
@@ -820,10 +862,10 @@
             </div>
 
             <!-- Actuator 4: White Inspection LEDs -->
-            <div class="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
+            <div class="bg-surface-container-lowest p-4 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2.5">
-                  <div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                     <span class="material-symbols-outlined text-[22px]">highlight</span>
                   </div>
                   <div>
@@ -835,7 +877,7 @@
                   <span class="inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 translate-x-6" id="switch-white-knob"></span>
                 </button>
               </div>
-              <div class="my-4">
+              <div class="my-3 sm:my-4">
                 <div class="flex items-center justify-between font-mono text-xs">
                   <span class="text-on-surface-variant">Window Lumens</span>
                   <span class="text-on-surface font-bold text-sm">450 lm</span>
@@ -848,11 +890,11 @@
               </div>
             </div>
 
-            <!-- Actuator 5: 450nm Blue Antimicrobial Light -->
-            <div class="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
+            <!-- Actuator 5: 450nm Blue Antimicrobial Light (Spans 2 cols on tablet) -->
+            <div class="col-span-1 sm:col-span-2 xl:col-span-1 bg-surface-container-lowest p-4 sm:p-5 rounded-2xl shadow-sm border border-surface-container-high/60 flex flex-col justify-between">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2.5">
-                  <div class="w-9 h-9 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center">
+                  <div class="w-9 h-9 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center flex-shrink-0">
                     <span class="material-symbols-outlined text-[22px]">sanitizer</span>
                   </div>
                   <div>
@@ -864,7 +906,7 @@
                   <span class="inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 translate-x-6" id="switch-blue-knob"></span>
                 </button>
               </div>
-              <div class="my-4">
+              <div class="my-3 sm:my-4">
                 <div class="flex items-center justify-between font-mono text-xs">
                   <span class="text-on-surface-variant">Mold Spore Efficacy</span>
                   <span class="text-secondary font-bold text-sm">99.1% Kill Rate</span>
@@ -1198,54 +1240,54 @@
               </div>
             </div>
 
-            <!-- 4-Stage Stepper Ribbon -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+            <!-- 4-Stage Stepper Ribbon (Balanced 2-col on mobile, 4-col on desktop) -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 pt-2">
               <!-- Step 1 -->
-              <div id="stepper-step-1" class="flex items-center gap-3 p-3 rounded-xl bg-surface shadow-xs border border-primary transition-all">
-                <div id="stepper-num-1" class="w-9 h-9 rounded-lg bg-primary text-on-primary flex items-center justify-center font-mono font-bold text-sm shadow-xs transition-all">
+              <div id="stepper-step-1" class="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl bg-surface shadow-xs border border-primary transition-all">
+                <div id="stepper-num-1" class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-primary text-on-primary flex items-center justify-center font-mono font-bold text-xs sm:text-sm shadow-xs transition-all flex-shrink-0">
                   01
                 </div>
                 <div class="flex flex-col min-w-0">
-                  <span class="text-xs font-bold text-on-surface truncate">1. Detect Hardware</span>
-                  <span id="stepper-sub-1" class="font-mono text-[10px] text-primary font-medium truncate">BLE Beacon Active</span>
+                  <span class="text-[11px] sm:text-xs font-bold text-on-surface truncate">1. Detect Hardware</span>
+                  <span id="stepper-sub-1" class="font-mono text-[9px] sm:text-[10px] text-primary font-medium truncate">BLE Active</span>
                 </div>
-                <span id="stepper-icon-1" class="material-symbols-outlined text-primary text-[20px] ml-auto">bluetooth</span>
+                <span id="stepper-icon-1" class="material-symbols-outlined text-primary text-[18px] sm:text-[20px] ml-auto hidden xs:inline-block">bluetooth</span>
               </div>
 
               <!-- Step 2 -->
-              <div id="stepper-step-2" class="flex items-center gap-3 p-3 rounded-xl bg-surface/60 border border-surface-container shadow-xs transition-all opacity-80">
-                <div id="stepper-num-2" class="w-9 h-9 rounded-lg bg-surface-container text-on-surface-variant flex items-center justify-center font-mono font-bold text-sm transition-all">
+              <div id="stepper-step-2" class="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl bg-surface/60 border border-surface-container shadow-xs transition-all opacity-80">
+                <div id="stepper-num-2" class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-surface-container text-on-surface-variant flex items-center justify-center font-mono font-bold text-xs sm:text-sm transition-all flex-shrink-0">
                   02
                 </div>
                 <div class="flex flex-col min-w-0">
-                  <span class="text-xs font-semibold text-on-surface truncate">2. Enter Local WiFi</span>
-                  <span id="stepper-sub-2" class="font-mono text-[10px] text-on-surface-variant truncate">SSID &amp; Password</span>
+                  <span class="text-[11px] sm:text-xs font-semibold text-on-surface truncate">2. Local WiFi</span>
+                  <span id="stepper-sub-2" class="font-mono text-[9px] sm:text-[10px] text-on-surface-variant truncate">SSID &amp; Key</span>
                 </div>
-                <span id="stepper-icon-2" class="material-symbols-outlined text-on-surface-variant text-[20px] ml-auto">wifi</span>
+                <span id="stepper-icon-2" class="material-symbols-outlined text-on-surface-variant text-[18px] sm:text-[20px] ml-auto hidden xs:inline-block">wifi</span>
               </div>
 
               <!-- Step 3 -->
-              <div id="stepper-step-3" class="flex items-center gap-3 p-3 rounded-xl bg-surface/60 border border-surface-container shadow-xs transition-all opacity-80">
-                <div id="stepper-num-3" class="w-9 h-9 rounded-lg bg-surface-container text-on-surface-variant flex items-center justify-center font-mono font-bold text-sm transition-all">
+              <div id="stepper-step-3" class="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl bg-surface/60 border border-surface-container shadow-xs transition-all opacity-80">
+                <div id="stepper-num-3" class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-surface-container text-on-surface-variant flex items-center justify-center font-mono font-bold text-xs sm:text-sm transition-all flex-shrink-0">
                   03
                 </div>
                 <div class="flex flex-col min-w-0">
-                  <span class="text-xs font-semibold text-on-surface truncate">3. Handshake &amp; Connect</span>
-                  <span id="stepper-sub-3" class="font-mono text-[10px] text-on-surface-variant truncate">ESP32 Provisioning</span>
+                  <span class="text-[11px] sm:text-xs font-semibold text-on-surface truncate">3. Handshake</span>
+                  <span id="stepper-sub-3" class="font-mono text-[9px] sm:text-[10px] text-on-surface-variant truncate">ESP32 Sync</span>
                 </div>
-                <span id="stepper-icon-3" class="material-symbols-outlined text-on-surface-variant text-[20px] ml-auto">sync</span>
+                <span id="stepper-icon-3" class="material-symbols-outlined text-on-surface-variant text-[18px] sm:text-[20px] ml-auto hidden xs:inline-block">sync</span>
               </div>
 
               <!-- Step 4 -->
-              <div id="stepper-step-4" class="flex items-center gap-3 p-3 rounded-xl bg-surface/60 border border-surface-container shadow-xs transition-all opacity-80">
-                <div id="stepper-num-4" class="w-9 h-9 rounded-lg bg-surface-container text-on-surface-variant flex items-center justify-center font-mono font-bold text-sm transition-all">
+              <div id="stepper-step-4" class="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl bg-surface/60 border border-surface-container shadow-xs transition-all opacity-80">
+                <div id="stepper-num-4" class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-surface-container text-on-surface-variant flex items-center justify-center font-mono font-bold text-xs sm:text-sm transition-all flex-shrink-0">
                   04
                 </div>
                 <div class="flex flex-col min-w-0">
-                  <span class="text-xs font-semibold text-on-surface truncate">4. Vault Connected</span>
-                  <span id="stepper-sub-4" class="font-mono text-[10px] text-on-surface-variant truncate">Auto-Reconnect Active</span>
+                  <span class="text-[11px] sm:text-xs font-semibold text-on-surface truncate">4. Connected</span>
+                  <span id="stepper-sub-4" class="font-mono text-[9px] sm:text-[10px] text-on-surface-variant truncate">Auto-Active</span>
                 </div>
-                <span id="stepper-icon-4" class="material-symbols-outlined text-on-surface-variant text-[20px] ml-auto">cloud_done</span>
+                <span id="stepper-icon-4" class="material-symbols-outlined text-on-surface-variant text-[18px] sm:text-[20px] ml-auto hidden xs:inline-block">cloud_done</span>
               </div>
             </div>
           </div>
@@ -1258,7 +1300,7 @@
               <div class="lg:col-span-7 flex flex-col gap-6">
                 
                 <!-- Sonar Radar HUD Card -->
-                <div class="bg-surface-container-lowest p-6 rounded-2xl border border-surface-container-high/60 shadow-sm relative overflow-hidden">
+                <div class="bg-surface-container-lowest p-4 sm:p-6 rounded-2xl border border-surface-container-high/60 shadow-sm relative overflow-hidden">
                   <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center gap-2">
                       <span class="material-symbols-outlined text-primary text-[24px]">radar</span>
@@ -1267,14 +1309,14 @@
                         <p class="text-xs text-on-surface-variant">Scanning Bluetooth LE 5.2 GATT &amp; 2.4GHz IEEE 802.11 b/g/n</p>
                       </div>
                     </div>
-                    <span class="font-mono text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full animate-pulse flex items-center gap-1.5">
+                    <span class="font-mono text-[10px] sm:text-xs font-bold text-primary bg-primary/10 px-2.5 sm:px-3 py-1 rounded-full animate-pulse flex items-center gap-1.5 flex-shrink-0">
                       <span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
                       BLE SCANNING
                     </span>
                   </div>
 
                   <!-- Circular Sonar Display -->
-                  <div class="relative w-full h-64 bg-surface-container-low rounded-xl border border-surface-container-high flex items-center justify-center overflow-hidden">
+                  <div class="relative w-full h-52 sm:h-64 bg-surface-container-low rounded-xl border border-surface-container-high flex items-center justify-center overflow-hidden">
                     <div class="absolute w-20 h-20 rounded-full border border-primary/20"></div>
                     <div class="absolute w-36 h-36 rounded-full border border-primary/25"></div>
                     <div class="absolute w-52 h-52 rounded-full border border-primary/20"></div>
@@ -1635,57 +1677,57 @@
               </button>
             </div>
 
-            <!-- Bento Details Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Bento Details Grid (Balanced 2-col on mobile, 4-col on desktop) -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
               
               <!-- Card 1: IP Address -->
-              <div class="p-5 rounded-2xl bg-surface-container-lowest border border-surface-container-high/60 shadow-xs flex flex-col justify-between gap-3">
+              <div class="p-3.5 sm:p-5 rounded-2xl bg-surface-container-lowest border border-surface-container-high/60 shadow-xs flex flex-col justify-between gap-2.5">
                 <div class="flex items-center justify-between text-on-surface-variant">
-                  <span class="font-mono text-xs font-bold uppercase">Assigned Local IP</span>
-                  <span class="material-symbols-outlined text-primary text-[20px]">lan</span>
+                  <span class="font-mono text-[10px] sm:text-xs font-bold uppercase truncate">Assigned IP</span>
+                  <span class="material-symbols-outlined text-primary text-[18px] sm:text-[20px] flex-shrink-0">lan</span>
                 </div>
                 <div>
-                  <a href="http://192.168.1.142/status" target="_blank" id="done-ip-display" class="font-mono text-xl font-bold text-primary hover:underline">192.168.1.142</a>
-                  <span class="text-[11px] text-on-surface-variant block mt-0.5">Port 80 Local REST API Active</span>
+                  <a href="http://192.168.1.142/status" target="_blank" id="done-ip-display" class="font-mono text-base sm:text-xl font-bold text-primary hover:underline truncate block">192.168.1.142</a>
+                  <span class="text-[10px] sm:text-[11px] text-on-surface-variant block mt-0.5 truncate">Port 80 REST Active</span>
                 </div>
               </div>
 
               <!-- Card 2: Connected SSID -->
-              <div class="p-5 rounded-2xl bg-surface-container-lowest border border-surface-container-high/60 shadow-xs flex flex-col justify-between gap-3">
+              <div class="p-3.5 sm:p-5 rounded-2xl bg-surface-container-lowest border border-surface-container-high/60 shadow-xs flex flex-col justify-between gap-2.5">
                 <div class="flex items-center justify-between text-on-surface-variant">
-                  <span class="font-mono text-xs font-bold uppercase">Connected Network</span>
-                  <span class="material-symbols-outlined text-primary text-[20px]">wifi</span>
+                  <span class="font-mono text-[10px] sm:text-xs font-bold uppercase truncate">WiFi Network</span>
+                  <span class="material-symbols-outlined text-primary text-[18px] sm:text-[20px] flex-shrink-0">wifi</span>
                 </div>
                 <div>
-                  <span id="done-ssid-display" class="text-lg font-bold text-on-surface block">HomeLab_IoT_2.4G</span>
-                  <span class="text-[11px] text-primary font-mono font-semibold block mt-0.5">RSSI: -38 dBm (Ultra Strong)</span>
+                  <span id="done-ssid-display" class="text-sm sm:text-lg font-bold text-on-surface block truncate">HomeLab_IoT</span>
+                  <span class="text-[10px] sm:text-[11px] text-primary font-mono font-semibold block mt-0.5 truncate">-38 dBm (Strong)</span>
                 </div>
               </div>
 
               <!-- Card 3: Auto-Reconnect Status -->
-              <div class="p-5 rounded-2xl bg-surface-container-lowest border border-surface-container-high/60 shadow-xs flex flex-col justify-between gap-3">
+              <div class="p-3.5 sm:p-5 rounded-2xl bg-surface-container-lowest border border-surface-container-high/60 shadow-xs flex flex-col justify-between gap-2.5">
                 <div class="flex items-center justify-between text-on-surface-variant">
-                  <span class="font-mono text-xs font-bold uppercase">Power Loss Recovery</span>
-                  <span class="material-symbols-outlined text-primary text-[20px]">battery_charging_full</span>
+                  <span class="font-mono text-[10px] sm:text-xs font-bold uppercase truncate">Power Recovery</span>
+                  <span class="material-symbols-outlined text-primary text-[18px] sm:text-[20px] flex-shrink-0">battery_charging_full</span>
                 </div>
                 <div>
-                  <span class="text-lg font-bold text-primary flex items-center gap-1.5">
-                    <span class="w-2 h-2 rounded-full bg-primary"></span>
+                  <span class="text-sm sm:text-lg font-bold text-primary flex items-center gap-1.5 truncate">
+                    <span class="w-2 h-2 rounded-full bg-primary flex-shrink-0"></span>
                     ACTIVE (NVS)
                   </span>
-                  <span class="text-[11px] text-on-surface-variant block mt-0.5">Auto-reconnects if power goes off</span>
+                  <span class="text-[10px] sm:text-[11px] text-on-surface-variant block mt-0.5 truncate">Flash auto-reconnect</span>
                 </div>
               </div>
 
               <!-- Card 4: Linked Account -->
-              <div class="p-5 rounded-2xl bg-surface-container-lowest border border-surface-container-high/60 shadow-xs flex flex-col justify-between gap-3">
+              <div class="p-3.5 sm:p-5 rounded-2xl bg-surface-container-lowest border border-surface-container-high/60 shadow-xs flex flex-col justify-between gap-2.5">
                 <div class="flex items-center justify-between text-on-surface-variant">
-                  <span class="font-mono text-xs font-bold uppercase">Linked Account</span>
-                  <span class="material-symbols-outlined text-primary text-[20px]">person_check</span>
+                  <span class="font-mono text-[10px] sm:text-xs font-bold uppercase truncate">Account</span>
+                  <span class="material-symbols-outlined text-primary text-[18px] sm:text-[20px] flex-shrink-0">person_check</span>
                 </div>
                 <div>
-                  <span class="text-lg font-bold text-on-surface block">Dr. E. Thorne</span>
-                  <span class="text-[11px] text-on-surface-variant font-mono block mt-0.5">Device Tag: SF-001 (Vault-4)</span>
+                  <span class="text-sm sm:text-lg font-bold text-on-surface block truncate">Dr. E. Thorne</span>
+                  <span class="text-[10px] sm:text-[11px] text-on-surface-variant font-mono block mt-0.5 truncate">SF-001 (Vault-4)</span>
                 </div>
               </div>
             </div>
@@ -1823,12 +1865,12 @@
                 </div>
               </div>
 
-              <!-- DHT22 Temp & Humidity Calibration -->
+              <!-- DHT11 Temp & Humidity Calibration -->
               <div class="bg-surface-container-lowest rounded-2xl p-6 border border-surface-container-high/60 shadow-sm flex flex-col gap-4">
                 <div class="flex items-center gap-2 border-b border-surface-container pb-3">
                   <span class="material-symbols-outlined text-secondary text-[24px]">thermostat</span>
                   <div>
-                    <h3 class="text-base font-bold text-on-surface">DHT22 Temperature &amp; Humidity Offsets</h3>
+                    <h3 class="text-base font-bold text-on-surface">DHT11 Temperature &amp; Humidity Offsets</h3>
                     <p class="text-xs text-on-surface-variant font-mono">Pin GPIO_4 &bull; 1-Wire Digital Hygrometer</p>
                   </div>
                 </div>
@@ -1897,39 +1939,39 @@
   <!-- =========================================================================
        ORDER & DEPLOY MODAL (Stitch Purchase Popup)
        ========================================================================= -->
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300" id="order-modal">
-    <div class="bg-surface-container-lowest max-w-lg w-full mx-4 rounded-2xl shadow-2xl p-6 flex flex-col gap-4 transform scale-95 transition-transform duration-300 border border-surface-container-high" id="order-modal-card">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 p-3 sm:p-4" id="order-modal">
+    <div class="bg-surface-container-lowest max-w-lg w-full mx-auto rounded-2xl shadow-2xl p-4 sm:p-6 flex flex-col gap-3.5 sm:gap-4 transform scale-95 transition-transform duration-300 border border-surface-container-high max-h-[calc(100dvh-2.5rem)] overflow-y-auto my-auto" id="order-modal-card">
       <div class="flex items-center justify-between border-b border-surface-container pb-3">
         <div class="flex items-center gap-2">
           <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary shadow-xs">
             <span class="material-symbols-outlined text-[18px]">shopping_cart_checkout</span>
           </div>
-          <span class="text-lg font-bold text-on-surface">Deploy FreshGuard Vault</span>
+          <span class="text-base sm:text-lg font-bold text-on-surface">Deploy FreshGuard Vault</span>
         </div>
-        <button type="button" class="p-1.5 rounded-lg hover:bg-surface-container text-on-surface-variant transition-colors" onclick="closeOrderModal()">
+        <button type="button" class="p-1.5 rounded-lg hover:bg-surface-container text-on-surface-variant transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center" onclick="closeOrderModal()">
           <span class="material-symbols-outlined text-[20px]">close</span>
         </button>
       </div>
 
-      <div class="p-4 bg-surface-container-low rounded-xl flex items-center gap-4 border border-surface-container-high/60">
-        <div class="w-20 h-20 rounded-lg bg-surface-container-lowest overflow-hidden flex items-center justify-center p-1 border border-surface-container">
+      <div class="p-3 sm:p-4 bg-surface-container-low rounded-xl flex items-center gap-3 sm:gap-4 border border-surface-container-high/60">
+        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-surface-container-lowest overflow-hidden flex items-center justify-center p-1 border border-surface-container flex-shrink-0">
           <img src="chamber_device.png" alt="Cart device thumbnail" class="h-full w-auto object-contain"/>
         </div>
-        <div class="flex flex-col">
-          <span class="text-sm font-bold text-on-surface">Smart FreshGuard Lab Vault</span>
-          <span class="font-mono text-xs text-on-surface-variant">ESP32 Core &bull; 450nm Antimicrobial &bull; 110V/220V</span>
-          <span class="font-mono text-base text-primary font-bold mt-1">$649.00 USD</span>
+        <div class="flex flex-col min-w-0">
+          <span class="text-xs sm:text-sm font-bold text-on-surface truncate">Smart FreshGuard Lab Vault</span>
+          <span class="font-mono text-[10px] sm:text-xs text-on-surface-variant truncate">ESP32 Core &bull; 450nm Blue &bull; 110V/220V</span>
+          <span class="font-mono text-sm sm:text-base text-primary font-bold mt-1">$649.00 USD</span>
         </div>
       </div>
 
-      <div class="flex flex-col gap-1.5 font-sans">
-        <label class="font-mono text-xs text-on-surface-variant font-bold">DESTINATION LABORATORY / FACILITY</label>
-        <input class="p-3 rounded-xl bg-surface-container-low border border-surface-container-high text-xs sm:text-sm text-on-surface focus:ring-2 focus:ring-primary focus:outline-none" type="text" value="UC Davis Postharvest Agronomy Lab #4"/>
+      <div class="flex flex-col gap-1 font-sans">
+        <label class="font-mono text-[11px] sm:text-xs text-on-surface-variant font-bold">DESTINATION FACILITY / LAB</label>
+        <input class="p-3 rounded-xl bg-surface-container-low border border-surface-container-high text-xs sm:text-sm text-on-surface focus:ring-2 focus:ring-primary focus:outline-none min-h-[44px]" type="text" value="UC Davis Postharvest Agronomy Lab #4"/>
       </div>
 
-      <div class="flex flex-col gap-1.5">
-        <label class="font-mono text-xs text-on-surface-variant font-bold">FAST SHIPPING DISPATCH</label>
-        <div class="p-3 rounded-xl bg-surface-container flex items-center justify-between text-xs sm:text-sm text-on-surface font-semibold">
+      <div class="flex flex-col gap-1">
+        <label class="font-mono text-[11px] sm:text-xs text-on-surface-variant font-bold">FAST SHIPPING DISPATCH</label>
+        <div class="p-3 rounded-xl bg-surface-container flex items-center justify-between text-xs sm:text-sm text-on-surface font-semibold min-h-[44px]">
           <span class="flex items-center gap-2">
             <span class="material-symbols-outlined text-primary text-[18px]">local_shipping</span>
             Next-Day Priority Freight
@@ -1938,11 +1980,11 @@
         </div>
       </div>
 
-      <div class="pt-2 flex items-center gap-3">
-        <button type="button" class="flex-1 py-3 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-sm" onclick="confirmOrder()">
+      <div class="pt-2 flex items-center gap-2.5 sm:gap-3">
+        <button type="button" class="flex-1 py-3 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-sm min-h-[44px]" onclick="confirmOrder()">
           <span>Authorize Order • $649</span>
         </button>
-        <button type="button" class="px-4 py-3 rounded-xl bg-surface-container-high hover:bg-surface-container text-on-surface text-sm font-semibold transition-all" onclick="closeOrderModal()">
+        <button type="button" class="px-4 py-3 rounded-xl bg-surface-container-high hover:bg-surface-container text-on-surface text-xs sm:text-sm font-semibold transition-all min-h-[44px]" onclick="closeOrderModal()">
           Cancel
         </button>
       </div>
@@ -1950,8 +1992,8 @@
   </div>
 
   <!-- Profile / Auth Modal -->
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300" id="auth-modal">
-    <div class="bg-surface-container-lowest max-w-md w-full mx-4 rounded-2xl shadow-2xl p-6 flex flex-col gap-4 transform scale-95 transition-transform duration-300 border border-surface-container-high" id="auth-modal-card">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 p-3 sm:p-4" id="auth-modal">
+    <div class="bg-surface-container-lowest max-w-md w-full mx-auto rounded-2xl shadow-2xl p-4 sm:p-6 flex flex-col gap-3.5 sm:gap-4 transform scale-95 transition-transform duration-300 border border-surface-container-high max-h-[calc(100dvh-2.5rem)] overflow-y-auto my-auto" id="auth-modal-card">
       <div class="flex items-center justify-between border-b border-surface-container pb-3">
         <div class="flex items-center gap-2">
           <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-xs">
@@ -1959,7 +2001,7 @@
           </div>
           <span class="text-base font-bold text-on-surface">Farm Manager Profile</span>
         </div>
-        <button type="button" class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant" onclick="closeAuthModal()">
+        <button type="button" class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant min-h-[36px] min-w-[36px] flex items-center justify-center" onclick="closeAuthModal()">
           <span class="material-symbols-outlined text-[20px]">close</span>
         </button>
       </div>
@@ -1984,7 +2026,7 @@
       </div>
 
       <div class="pt-2 flex flex-col gap-2">
-        <button type="button" onclick="showToast('Profile Updated', 'Agronomist credentials confirmed.', 'verified'); closeAuthModal()" class="w-full py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary-container transition-all">
+        <button type="button" onclick="showToast('Profile Updated', 'Agronomist credentials confirmed.', 'verified'); closeAuthModal()" class="w-full py-3 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary-container transition-all min-h-[44px]">
           Confirm Credentials
         </button>
       </div>
@@ -1994,13 +2036,13 @@
   <!-- =========================================================================
        SAFETY INTERLOCK WARNING TOAST STRIP
        ========================================================================= -->
-  <div class="fixed bottom-6 right-6 z-50 max-w-md bg-inverse-surface text-inverse-on-surface px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transform translate-y-36 transition-transform duration-300 border-l-4 border-tertiary" id="safety-toast">
+  <div class="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,16px))] lg:bottom-6 right-3 lg:right-6 left-3 sm:left-auto z-50 max-w-md bg-inverse-surface text-inverse-on-surface px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transform translate-y-48 transition-transform duration-300 border-l-4 border-tertiary" id="safety-toast">
     <span class="material-symbols-outlined text-tertiary text-[24px]" id="toast-icon">warning</span>
     <div class="flex flex-col flex-1">
       <span class="font-bold text-sm leading-tight" id="toast-title">Safety Interlock Engaged</span>
       <span class="text-xs text-inverse-on-surface/80 mt-0.5" id="toast-message">Fans and high-output UV paused while chamber open.</span>
     </div>
-    <button type="button" class="p-1 text-inverse-on-surface/60 hover:text-inverse-on-surface transition-colors" onclick="dismissToast()">
+    <button type="button" class="p-1 text-inverse-on-surface/60 hover:text-inverse-on-surface transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center" onclick="dismissToast()">
       <span class="material-symbols-outlined text-[18px]">close</span>
     </button>
   </div>
@@ -2008,27 +2050,27 @@
   <!-- =========================================================================
        MOBILE BOTTOM NAVIGATION BAR (Visible on Mobile/Tablet screens)
        ========================================================================= -->
-  <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/95 backdrop-blur-xl border-t border-surface-container-high px-2 py-1.5 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-    <div class="flex items-center justify-around">
-      <button type="button" onclick="switchTab('overview')" class="mob-tab-btn flex flex-col items-center gap-1 py-1 px-3 rounded-xl text-primary font-bold" data-target="overview">
-        <span class="material-symbols-outlined text-[20px]">view_in_ar</span>
-        <span class="text-[10px]">Overview</span>
+  <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/95 backdrop-blur-xl border-t border-surface-container-high px-1 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]" style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 16px)); padding-left: max(0.25rem, env(safe-area-inset-left, 0px)); padding-right: max(0.25rem, env(safe-area-inset-right, 0px));">
+    <div class="grid grid-cols-5 items-center justify-between max-w-lg mx-auto">
+      <button type="button" onclick="switchTab('overview')" class="mob-tab-btn flex flex-col items-center justify-center gap-0.5 py-1.5 px-0.5 rounded-xl text-primary font-bold min-h-[48px] active:scale-95 transition-transform" data-target="overview">
+        <span class="material-symbols-outlined text-[21px]">view_in_ar</span>
+        <span class="text-[10px] leading-tight font-medium">Overview</span>
       </button>
-      <button type="button" onclick="switchTab('telemetry')" class="mob-tab-btn flex flex-col items-center gap-1 py-1 px-3 rounded-xl text-on-surface-variant font-medium hover:text-on-surface" data-target="telemetry">
-        <span class="material-symbols-outlined text-[20px]">sensors</span>
-        <span class="text-[10px]">Telemetry</span>
+      <button type="button" onclick="switchTab('telemetry')" class="mob-tab-btn flex flex-col items-center justify-center gap-0.5 py-1.5 px-0.5 rounded-xl text-on-surface-variant font-medium hover:text-on-surface min-h-[48px] active:scale-95 transition-transform" data-target="telemetry">
+        <span class="material-symbols-outlined text-[21px]">sensors</span>
+        <span class="text-[10px] leading-tight">Telemetry</span>
       </button>
-      <button type="button" onclick="switchTab('pairing')" class="mob-tab-btn flex flex-col items-center gap-1 py-1 px-3 rounded-xl text-on-surface-variant font-medium hover:text-on-surface" data-target="pairing">
-        <span class="material-symbols-outlined text-[20px]">wifi</span>
-        <span class="text-[10px]">WiFi Link</span>
+      <button type="button" onclick="switchTab('pairing')" class="mob-tab-btn flex flex-col items-center justify-center gap-0.5 py-1.5 px-0.5 rounded-xl text-on-surface-variant font-medium hover:text-on-surface min-h-[48px] active:scale-95 transition-transform" data-target="pairing">
+        <span class="material-symbols-outlined text-[21px]">wifi</span>
+        <span class="text-[10px] leading-tight">WiFi Link</span>
       </button>
-      <button type="button" onclick="switchTab('calibration')" class="mob-tab-btn flex flex-col items-center gap-1 py-1 px-3 rounded-xl text-on-surface-variant font-medium hover:text-on-surface" data-target="calibration">
-        <span class="material-symbols-outlined text-[20px]">tune</span>
-        <span class="text-[10px]">Settings</span>
+      <button type="button" onclick="switchTab('calibration')" class="mob-tab-btn flex flex-col items-center justify-center gap-0.5 py-1.5 px-0.5 rounded-xl text-on-surface-variant font-medium hover:text-on-surface min-h-[48px] active:scale-95 transition-transform" data-target="calibration">
+        <span class="material-symbols-outlined text-[21px]">tune</span>
+        <span class="text-[10px] leading-tight">Settings</span>
       </button>
-      <button type="button" onclick="triggerOrderModal()" class="flex flex-col items-center gap-1 py-1 px-3 rounded-xl text-primary font-bold">
-        <span class="material-symbols-outlined text-[20px]">shopping_bag</span>
-        <span class="text-[10px]">Deploy</span>
+      <button type="button" onclick="triggerOrderModal()" class="flex flex-col items-center justify-center gap-0.5 py-1.5 px-0.5 rounded-xl text-primary font-bold min-h-[48px] active:scale-95 transition-transform">
+        <span class="material-symbols-outlined text-[21px]">shopping_bag</span>
+        <span class="text-[10px] leading-tight">Deploy</span>
       </button>
     </div>
   </nav>
@@ -2091,9 +2133,9 @@
       // Update Mobile Bottom Nav
       document.querySelectorAll('.mob-tab-btn').forEach(btn => {
         if (btn.getAttribute('data-target') === tabId) {
-          btn.className = "mob-tab-btn flex flex-col items-center gap-1 py-1 px-3 rounded-xl text-primary font-bold";
+          btn.className = "mob-tab-btn flex flex-col items-center justify-center gap-0.5 py-1.5 px-0.5 rounded-xl text-primary font-bold min-h-[48px] active:scale-95 transition-transform";
         } else {
-          btn.className = "mob-tab-btn flex flex-col items-center gap-1 py-1 px-3 rounded-xl text-on-surface-variant font-medium hover:text-on-surface";
+          btn.className = "mob-tab-btn flex flex-col items-center justify-center gap-0.5 py-1.5 px-0.5 rounded-xl text-on-surface-variant font-medium hover:text-on-surface min-h-[48px] active:scale-95 transition-transform";
         }
       });
 
@@ -2628,7 +2670,7 @@
       if (tMsg) tMsg.innerText = msg;
       if (tIcon) tIcon.innerText = icon;
 
-      if (toast) toast.classList.remove('translate-y-36');
+      if (toast) toast.classList.remove('translate-y-48', 'translate-y-36');
 
       if (toastTimeout) clearTimeout(toastTimeout);
       toastTimeout = setTimeout(() => {
@@ -2638,7 +2680,7 @@
 
     function dismissToast() {
       const toast = document.getElementById('safety-toast');
-      if (toast) toast.classList.add('translate-y-36');
+      if (toast) toast.classList.add('translate-y-48');
     }
 
     // ─── 9. Live Backend REST Integration ──────────────────────────────────────
