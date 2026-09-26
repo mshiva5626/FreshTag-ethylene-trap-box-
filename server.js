@@ -187,6 +187,17 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  if (pathname === '/api/unpair' && req.method === 'POST') {
+    globalState.account_id = "unpaired";
+    globalState.wifi_connected = false;
+    globalState.timestamp = new Date().toISOString().slice(0, 19);
+    return sendJson(res, 200, {
+      status: "UNPAIRED",
+      message: "Chamber unlinked from account and reset to pairing mode",
+      account_id: "unpaired"
+    });
+  }
+
   if (pathname === '/api/door' && req.method === 'POST') {
     try {
       const data = await parseJsonBody(req);

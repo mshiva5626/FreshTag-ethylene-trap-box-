@@ -273,6 +273,19 @@ while ($Listener.IsListening) {
             continue
         }
 
+        if ($urlPath -eq "/api/unpair" -and $method -eq "POST") {
+            $GlobalState.account_id = "unpaired"
+            $GlobalState.wifi_connected = $false
+            $GlobalState.timestamp = (Get-Date -Format "yyyy-MM-ddTHH:mm:ss")
+            
+            Send-JsonResponse $response @{
+                status     = "UNPAIRED"
+                message    = "Chamber unlinked from account and reset to pairing mode"
+                account_id = "unpaired"
+            }
+            continue
+        }
+
         if ($urlPath -eq "/api/config" -and $method -eq "GET") {
             if (Test-Path $ConfigFile) {
                 Send-StaticFile $response $ConfigFile

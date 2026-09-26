@@ -163,6 +163,7 @@ bool connectToWiFi(const char* ssid, const char* password);
 void sendStatusBLE(String statusMsg);
 void processWiFiConfig(String jsonPayload);
 void initBLE();
+void unpairAndResetToBLE();
 
 // ======================== BLE CALLBACKS ==============================
 class FreshGuardBLEServerCallbacks : public BLEServerCallbacks {
@@ -244,6 +245,49 @@ void initBLE() {
   Serial.println("[BLE] Advertising started. Discoverable as: " BLE_DEVICE_NAME);
 }
 
+// ======================== FACTORY UNPAIR & BLE RESET =================
+void unpairAndResetToBLE() {
+  Serial.println("\n[UNPAIR] >>> Deleting WiFi and Account credentials from Flash NVS! <<<");
+  
+  // Wipe all stored data from Preferences
+  preferences.begin("freshguard", false);
+  preferences.clear();
+  preferences.putBool("configured", false);
+  preferences.end();
+
+  // Reset in-memory account
+  accountId = "unpaired";
+  systemMode = "AUTO";
+
+  // Safely turn off active actuators
+  inletFanState = false;
+  outletFanState = false;
+  humidifierState = false;
+  blueLedState = false;
+  whiteLedState = false;
+  setRelay(RELAY_INLET_FAN, false);
+  setRelay(RELAY_OUTLET_FAN, false);
+  setRelay(RELAY_HUMIDIFIER, false);
+  setRelay(RELAY_BLUE_LED, false);
+  setRelay(RELAY_WHITE_LED, false);
+
+  // Fully disconnect WiFi and wipe radio memory
+  Serial.println("[WiFi] Disconnecting WiFi radio and clearing stored network...");
+  WiFi.disconnect(true, true);
+  WiFi.mode(WIFI_OFF);
+  delay(150);
+  WiFi.mode(WIFI_STA);
+
+  // Notify connected BLE client
+  sendStatusBLE("STATUS:UNPAIRED:READY_FOR_NEW_USER");
+
+  // Restart BLE advertising in fresh pairing mode
+  Serial.println("[BLE] Restarting BLE advertising in pairing mode...");
+  BLEDevice::startAdvertising();
+
+  Serial.println("[STATUS] >>> Chamber successfully unpaired! Ready to be claimed by a new owner. <<<");
+}
+
 // ======================== NVS CONFIG PROCESSING ======================
 void processWiFiConfig(String jsonPayload) {
   FreshGuardJsonDoc doc;
@@ -251,6 +295,13 @@ void processWiFiConfig(String jsonPayload) {
   if (err) {
     Serial.println("[BLE] JSON Parse Error in WiFi config!");
     sendStatusBLE("ERROR:JSON_PARSE");
+    return;
+  }
+
+  // Check for Unpair / Delete from Connected command
+  if ((doc.containsKey("action") && (doc["action"] == "UNPAIR" || doc["action"] == "DELETE" || doc["action"] == "RESET")) ||
+      (doc.containsKey("unpair") && doc["unpair"] == true)) {
+    unpairAndResetToBLE();
     return;
   }
 
@@ -425,11 +476,12 @@ void loop() {
     if (millis() - lastWiFiReconnectCheck >= WIFI_RETRY_MS) {
       lastWiFiReconnectCheck = millis();
       preferences.begin("freshguard", true);
+      bool isCfg = preferences.getBool("configured", false);
       String sSsid = preferences.getString("ssid", "");
       String sPass = preferences.getString("password", "");
       preferences.end();
 
-      if (sSsid.length() > 0) {
+      if (isCfg && sSsid.length() > 0) {
         Serial.println("[WiFi Keep-Alive] Connection dropped. Auto-reconnecting...");
         WiFi.begin(sSsid.c_str(), sPass.c_str());
       }
@@ -765,6 +817,14 @@ void setupLocalHttpServer() {
     } else {
       localServer.send(400, "text/plain", "Missing request body");
     }
+  });
+
+  // POST /unpair: Delete stored WiFi/Account credentials and reset to BLE pairing mode
+  localServer.on("/unpair", HTTP_POST, []() {
+    Serial.println("\n[HTTP Server] Received /unpair command from App!");
+    localServer.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"UNPAIR\",\"message\":\"Chamber credentials wiped. BLE pairing active.\"}");
+    delay(150);
+    unpairAndResetToBLE();
   });
 
   localServer.begin();

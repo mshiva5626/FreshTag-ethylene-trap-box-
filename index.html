@@ -365,6 +365,16 @@
       background: rgba(255,255,255,0.06); color: var(--text);
       border: 1px solid var(--border);
     }
+    .btn-secondary:active { transform: scale(0.97); }
+    .btn-danger {
+      background: rgba(239,68,68,0.12); color: #ef4444;
+      border: 1px solid rgba(239,68,68,0.25);
+    }
+    .btn-danger:hover {
+      background: rgba(239,68,68,0.22); border-color: rgba(239,68,68,0.5);
+      box-shadow: 0 4px 20px rgba(239,68,68,0.25);
+    }
+    .btn-danger:active { transform: scale(0.97); }
 
     /* ── Section Headers ── */
     .section-head {
@@ -846,10 +856,16 @@
           <div><span style="color:var(--text-muted);">WiFi Network:</span> <strong id="done-ssid">—</strong></div>
           <div><span style="color:var(--text-muted);">Auto-Reconnect:</span> <strong style="color:var(--accent);">Active (NVS Flash Memory)</strong></div>
         </div>
-        <button class="btn btn-secondary" onclick="navigateTo('home')">
-          <span class="material-symbols-outlined" style="font-size:18px;">home</span>
-          Go to Dashboard
-        </button>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <button class="btn btn-secondary" onclick="navigateTo('home')">
+            <span class="material-symbols-outlined" style="font-size:18px;">home</span>
+            Go to Dashboard
+          </button>
+          <button class="btn btn-danger" onclick="unpairChamber()" id="btn-unpair-connected">
+            <span class="material-symbols-outlined" style="font-size:18px;">link_off</span>
+            Delete from Connected
+          </button>
+        </div>
       </div>
     </div>
 
@@ -887,6 +903,15 @@
           <span style="color:var(--text-muted);">IR Safety Door Beam</span>
           <span id="diag-door" style="font-weight:600; color:var(--accent);">Active</span>
         </div>
+        <div style="border-top:1px solid var(--border); margin:10px 0 6px;"></div>
+        <div style="font-size:11px; font-weight:700; color:var(--red); text-transform:uppercase; letter-spacing:0.5px;">Chamber Ownership</div>
+        <div style="font-size:12px; color:var(--text-muted); line-height:1.4; margin-bottom:4px;">
+          Disconnect this chamber, erase saved WiFi and account from flash, and reset it into pairing mode so another person can connect.
+        </div>
+        <button class="btn btn-danger" onclick="unpairChamber()" id="btn-unpair-diagnostics">
+          <span class="material-symbols-outlined" style="font-size:18px;">delete_forever</span>
+          Delete from Connected
+        </button>
       </div>
     </div>
   </div>
@@ -1164,6 +1189,105 @@
           submitBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px;">cloud_sync</span> Save & Connect Chamber`;
         }
       }, 700);
+    }
+
+    // ── Delete / Unpair Chamber from App ──
+    async function unpairChamber() {
+      const confirmed = confirm(
+        "Are you sure you want to disconnect this FreshGuard chamber?\n\n" +
+        "• The chamber will be unlinked from your account.\n" +
+        "• WiFi and account credentials will be wiped from the chamber's Flash memory.\n" +
+        "• The chamber will return to Bluetooth pairing mode and can be connected by another person.\n" +
+        "• It will NEVER auto-reconnect to your account."
+      );
+      if (!confirmed) return;
+
+      showToast("Disconnecting chamber and wiping flash credentials...");
+
+      // 1. Send UNPAIR command to ESP32 over BLE GATT if Bluetooth connection is open
+      if (bleConfigChar) {
+        try {
+          const encoder = new TextEncoder();
+          const unpairMsg = JSON.stringify({ action: "UNPAIR", unpair: true });
+          await bleConfigChar.writeValue(encoder.encode(unpairMsg));
+          console.log("[BLE] UNPAIR command sent to ESP32 GATT");
+        } catch (bleErr) {
+          console.warn("BLE unpair notice:", bleErr);
+        }
+      }
+
+      // 2. Send unpair notification to backend server
+      try {
+        await fetch('/api/unpair', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: "UNPAIR", account_id: boundAccount })
+        });
+      } catch (e) {}
+
+      // 3. Send unpair directly to local chamber server if reachable
+      try {
+        await fetch('/unpair', { method: 'POST' });
+      } catch (e) {}
+
+      // 4. Disconnect Web Bluetooth GATT session
+      if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+        try {
+          bleDevice.gatt.disconnect();
+        } catch (e) {}
+      }
+      bleDevice = null;
+      bleServer = null;
+      bleConfigChar = null;
+      bleStatusChar = null;
+      bleDeviceConnected = false;
+
+      // 5. Reset local account binding in app
+      boundAccount = "unpaired";
+      try {
+        localStorage.removeItem("freshguard_account");
+        localStorage.removeItem("freshguard_wifi");
+      } catch (e) {}
+
+      // 6. Reset UI back to Pairing Mode (Stage 1)
+      document.getElementById('setup-stage-3').style.display = 'none';
+      document.getElementById('setup-stage-2').style.display = 'none';
+      document.getElementById('setup-stage-1').style.display = 'block';
+
+      // Reset step indicator numbers
+      const s1num = document.querySelector('#setup-step-1 .step-number');
+      const s2num = document.querySelector('#setup-step-2 .step-number');
+      const s3num = document.querySelector('#setup-step-3 .step-number');
+      if (s1num) { s1num.className = 'step-number active'; s1num.textContent = '1'; }
+      if (s2num) { s2num.className = 'step-number'; s2num.textContent = '2'; }
+      if (s3num) { s3num.className = 'step-number'; s3num.textContent = '3'; }
+
+      // Clear input fields so previous user's credentials are gone
+      const ssidInput = document.getElementById('wifi-ssid');
+      if (ssidInput) ssidInput.value = '';
+      const passInput = document.getElementById('wifi-pass');
+      if (passInput) passInput.value = '';
+      const accInput = document.getElementById('setup-account-id');
+      if (accInput) accInput.value = '';
+
+      // Reset Device Diagnostics display
+      const devAcc = document.getElementById('device-account-val');
+      if (devAcc) {
+        devAcc.textContent = "Unpaired (Ready for New Owner)";
+        devAcc.style.color = "var(--amber)";
+      }
+      const doneAcc = document.getElementById('done-account');
+      if (doneAcc) doneAcc.textContent = "None";
+      const doneSsid = document.getElementById('done-ssid');
+      if (doneSsid) doneSsid.textContent = "—";
+
+      // Reset header status badge
+      const dot = document.getElementById('statusDot');
+      const statusText = document.getElementById('statusText');
+      if (dot) dot.classList.add('offline');
+      if (statusText) statusText.textContent = "Unpaired (Pairing Mode)";
+
+      showToast("Chamber deleted! It is now in Bluetooth pairing mode for another person.");
     }
 
     // ── Telemetry Polling & Sensor UI with "Doesn't Exist" Detection ──
