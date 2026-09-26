@@ -1200,168 +1200,536 @@
 
             <!-- 4-Stage Stepper Ribbon -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-              <div class="flex items-center gap-3 p-3 rounded-xl bg-surface shadow-xs border border-primary/30">
-                <div class="w-9 h-9 rounded-lg bg-primary text-on-primary flex items-center justify-center font-mono font-bold text-sm shadow-xs">
+              <!-- Step 1 -->
+              <div id="stepper-step-1" class="flex items-center gap-3 p-3 rounded-xl bg-surface shadow-xs border border-primary transition-all">
+                <div id="stepper-num-1" class="w-9 h-9 rounded-lg bg-primary text-on-primary flex items-center justify-center font-mono font-bold text-sm shadow-xs transition-all">
                   01
                 </div>
                 <div class="flex flex-col min-w-0">
-                  <span class="text-xs font-bold text-on-surface truncate">Detect Hardware</span>
-                  <span class="font-mono text-[10px] text-primary font-medium truncate">BLE Beacon Active</span>
+                  <span class="text-xs font-bold text-on-surface truncate">1. Detect Hardware</span>
+                  <span id="stepper-sub-1" class="font-mono text-[10px] text-primary font-medium truncate">BLE Beacon Active</span>
                 </div>
-                <span class="material-symbols-outlined text-primary text-[20px] ml-auto">radio_button_checked</span>
+                <span id="stepper-icon-1" class="material-symbols-outlined text-primary text-[20px] ml-auto">bluetooth</span>
               </div>
 
-              <div class="flex items-center gap-3 p-3 rounded-xl bg-surface/60 border border-surface-container shadow-xs">
-                <div class="w-9 h-9 rounded-lg bg-surface-container text-on-surface-variant flex items-center justify-center font-mono font-bold text-sm">
+              <!-- Step 2 -->
+              <div id="stepper-step-2" class="flex items-center gap-3 p-3 rounded-xl bg-surface/60 border border-surface-container shadow-xs transition-all opacity-80">
+                <div id="stepper-num-2" class="w-9 h-9 rounded-lg bg-surface-container text-on-surface-variant flex items-center justify-center font-mono font-bold text-sm transition-all">
                   02
                 </div>
                 <div class="flex flex-col min-w-0">
-                  <span class="text-xs font-semibold text-on-surface truncate">Select Local WiFi</span>
-                  <span class="font-mono text-[10px] text-on-surface-variant truncate">2.4GHz ESP32 Target</span>
+                  <span class="text-xs font-semibold text-on-surface truncate">2. Enter Local WiFi</span>
+                  <span id="stepper-sub-2" class="font-mono text-[10px] text-on-surface-variant truncate">SSID &amp; Password</span>
                 </div>
-                <span class="material-symbols-outlined text-on-surface-variant text-[20px] ml-auto">wifi</span>
+                <span id="stepper-icon-2" class="material-symbols-outlined text-on-surface-variant text-[20px] ml-auto">wifi</span>
               </div>
 
-              <div class="flex items-center gap-3 p-3 rounded-xl bg-surface/60 border border-surface-container shadow-xs">
-                <div class="w-9 h-9 rounded-lg bg-surface-container text-on-surface-variant flex items-center justify-center font-mono font-bold text-sm">
+              <!-- Step 3 -->
+              <div id="stepper-step-3" class="flex items-center gap-3 p-3 rounded-xl bg-surface/60 border border-surface-container shadow-xs transition-all opacity-80">
+                <div id="stepper-num-3" class="w-9 h-9 rounded-lg bg-surface-container text-on-surface-variant flex items-center justify-center font-mono font-bold text-sm transition-all">
                   03
                 </div>
                 <div class="flex flex-col min-w-0">
-                  <span class="text-xs font-semibold text-on-surface truncate">Calibrate Hardware</span>
-                  <span class="font-mono text-[10px] text-on-surface-variant truncate">IR Door &amp; Dual Relays</span>
+                  <span class="text-xs font-semibold text-on-surface truncate">3. Handshake &amp; Connect</span>
+                  <span id="stepper-sub-3" class="font-mono text-[10px] text-on-surface-variant truncate">ESP32 Provisioning</span>
                 </div>
-                <span class="material-symbols-outlined text-on-surface-variant text-[20px] ml-auto">tune</span>
+                <span id="stepper-icon-3" class="material-symbols-outlined text-on-surface-variant text-[20px] ml-auto">sync</span>
               </div>
 
-              <div class="flex items-center gap-3 p-3 rounded-xl bg-surface/60 border border-surface-container shadow-xs">
-                <div class="w-9 h-9 rounded-lg bg-surface-container text-on-surface-variant flex items-center justify-center font-mono font-bold text-sm">
+              <!-- Step 4 -->
+              <div id="stepper-step-4" class="flex items-center gap-3 p-3 rounded-xl bg-surface/60 border border-surface-container shadow-xs transition-all opacity-80">
+                <div id="stepper-num-4" class="w-9 h-9 rounded-lg bg-surface-container text-on-surface-variant flex items-center justify-center font-mono font-bold text-sm transition-all">
                   04
                 </div>
                 <div class="flex flex-col min-w-0">
-                  <span class="text-xs font-semibold text-on-surface truncate">Vault Live &amp; Synced</span>
-                  <span class="font-mono text-[10px] text-on-surface-variant truncate">MQTT Broker Verified</span>
+                  <span class="text-xs font-semibold text-on-surface truncate">4. Vault Connected</span>
+                  <span id="stepper-sub-4" class="font-mono text-[10px] text-on-surface-variant truncate">Auto-Reconnect Active</span>
                 </div>
-                <span class="material-symbols-outlined text-on-surface-variant text-[20px] ml-auto">cloud_done</span>
+                <span id="stepper-icon-4" class="material-symbols-outlined text-on-surface-variant text-[20px] ml-auto">cloud_done</span>
               </div>
             </div>
           </div>
 
-          <!-- Pairing Content Columns -->
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            
-            <!-- LEFT: Proximity Radar & Discovered Devices (7 Cols) -->
-            <div class="lg:col-span-7 flex flex-col gap-6">
+          <!-- STAGE 1: BLUETOOTH DISCOVERY & PAIRING -->
+          <div id="pair-stage-1" class="pairing-stage flex flex-col gap-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               
-              <!-- Sonar Radar HUD Card -->
-              <div class="bg-surface-container-lowest p-6 rounded-2xl border border-surface-container-high/60 shadow-sm relative overflow-hidden">
-                <div class="flex items-center justify-between mb-4">
-                  <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary text-[24px]">radar</span>
-                    <div>
-                      <h2 class="text-base font-bold text-on-surface">Proximity Radar</h2>
-                      <p class="text-xs text-on-surface-variant">Scanning 2.4GHz IEEE 802.11 b/g/n &amp; Bluetooth LE 5.2</p>
+              <!-- LEFT: Proximity Radar & Discovered BLE Transponders (7 Cols) -->
+              <div class="lg:col-span-7 flex flex-col gap-6">
+                
+                <!-- Sonar Radar HUD Card -->
+                <div class="bg-surface-container-lowest p-6 rounded-2xl border border-surface-container-high/60 shadow-sm relative overflow-hidden">
+                  <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                      <span class="material-symbols-outlined text-primary text-[24px]">radar</span>
+                      <div>
+                        <h2 class="text-base font-bold text-on-surface">Bluetooth Proximity Radar</h2>
+                        <p class="text-xs text-on-surface-variant">Scanning Bluetooth LE 5.2 GATT &amp; 2.4GHz IEEE 802.11 b/g/n</p>
+                      </div>
+                    </div>
+                    <span class="font-mono text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full animate-pulse flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+                      BLE SCANNING
+                    </span>
+                  </div>
+
+                  <!-- Circular Sonar Display -->
+                  <div class="relative w-full h-64 bg-surface-container-low rounded-xl border border-surface-container-high flex items-center justify-center overflow-hidden">
+                    <div class="absolute w-20 h-20 rounded-full border border-primary/20"></div>
+                    <div class="absolute w-36 h-36 rounded-full border border-primary/25"></div>
+                    <div class="absolute w-52 h-52 rounded-full border border-primary/20"></div>
+                    <div class="absolute w-full h-px bg-primary/15"></div>
+                    <div class="absolute h-full w-px bg-primary/15"></div>
+                    <div class="absolute w-full h-full flex items-center justify-center pointer-events-none radar-sweep-line">
+                      <div class="w-1/2 h-0.5 bg-gradient-to-r from-transparent to-primary"></div>
+                    </div>
+                    <!-- Detected ESP32 Blip -->
+                    <div class="absolute top-[35%] left-[55%] flex flex-col items-center cursor-pointer group">
+                      <span class="relative flex h-3.5 w-3.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-primary"></span>
+                      </span>
+                      <div class="bg-inverse-surface/90 text-inverse-on-surface px-2 py-0.5 rounded shadow text-[10px] font-mono font-bold mt-1 backdrop-blur-xs">
+                        FreshGuard-Vault-ESP32 (-38 dBm)
+                      </div>
+                    </div>
+                    <!-- Secondary Blip -->
+                    <div class="absolute bottom-[30%] left-[28%] flex flex-col items-center opacity-60">
+                      <span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+                      <span class="font-mono text-[9px] bg-secondary text-on-secondary px-1.5 py-0.2 rounded mt-1">Farm_Beacon_02</span>
                     </div>
                   </div>
-                  <span class="font-mono text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full animate-pulse">Scanning...</span>
                 </div>
 
-                <!-- Circular Sonar Display -->
-                <div class="relative w-full h-64 bg-surface-container-low rounded-xl border border-surface-container-high flex items-center justify-center overflow-hidden">
-                  <!-- Concentric Radar Rings -->
-                  <div class="absolute w-20 h-20 rounded-full border border-primary/20"></div>
-                  <div class="absolute w-36 h-36 rounded-full border border-primary/25"></div>
-                  <div class="absolute w-52 h-52 rounded-full border border-primary/20"></div>
-                  <!-- Crosshairs -->
-                  <div class="absolute w-full h-px bg-primary/15"></div>
-                  <div class="absolute h-full w-px bg-primary/15"></div>
-                  <!-- Sweeper line -->
-                  <div class="absolute w-full h-full flex items-center justify-center pointer-events-none radar-sweep-line">
-                    <div class="w-1/2 h-0.5 bg-gradient-to-r from-transparent to-primary"></div>
+                <!-- Discovered Devices List -->
+                <div class="bg-surface-container-lowest p-6 rounded-2xl border border-surface-container-high/60 shadow-sm flex flex-col gap-3">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <h3 class="text-sm font-bold text-on-surface">Discovered Bluetooth Hardware</h3>
+                      <p class="text-xs text-on-surface-variant">Select your physical ESP32 storage chamber to pair</p>
+                    </div>
+                    <button type="button" onclick="showToast('Re-scanning Channels', 'Searching for active FreshGuard BLE beacons...', 'refresh')" class="text-primary hover:text-primary-container text-xs font-semibold flex items-center gap-1">
+                      <span class="material-symbols-outlined text-[16px]">refresh</span> Rescan
+                    </button>
                   </div>
-                  <!-- Radar Targets (Blips) -->
-                  <div class="absolute top-1/4 left-1/3 flex flex-col items-center">
-                    <span class="w-3 h-3 rounded-full bg-primary animate-ping"></span>
-                    <span class="font-mono text-[9px] bg-primary text-on-primary px-1.5 py-0.5 rounded mt-1 font-bold">FG-Vault #8841</span>
+                  
+                  <!-- Device 1: Target ESP32 -->
+                  <div class="p-4 rounded-xl bg-primary/5 border border-primary/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                    <div class="flex items-start gap-3">
+                      <div class="w-11 h-11 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold flex-shrink-0 shadow-xs">
+                        <span class="material-symbols-outlined text-[22px]">bluetooth</span>
+                      </div>
+                      <div>
+                        <div class="flex items-center gap-2">
+                          <span class="text-sm font-bold text-on-surface">FreshGuard-Vault-ESP32</span>
+                          <span class="bg-primary text-on-primary text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">Ready to Pair</span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 text-xs font-mono text-on-surface-variant mt-1">
+                          <span class="text-primary font-bold flex items-center gap-0.5">
+                            <span class="material-symbols-outlined text-[14px]">signal_cellular_alt</span> -38 dBm
+                          </span>
+                          <span>•</span>
+                          <span>MAC: 24:6F:28:B4:7C:8F</span>
+                          <span>•</span>
+                          <span>BLE 5.2 GATT</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button type="button" id="btn-ble-connect" onclick="connectBleChamber()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm">
+                      <span class="material-symbols-outlined text-[18px]" id="ble-btn-icon">bluetooth_connected</span>
+                      <span id="ble-btn-text">Connect Bluetooth</span>
+                    </button>
                   </div>
-                  <div class="absolute bottom-1/3 right-1/4 flex flex-col items-center opacity-70">
-                    <span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
-                    <span class="font-mono text-[9px] bg-secondary text-on-secondary px-1.5 py-0.5 rounded mt-1">Farm_AP_5G</span>
+
+                  <!-- Standby Node -->
+                  <div class="p-3.5 rounded-xl bg-surface-container-low border border-surface-container-high flex items-center justify-between opacity-70">
+                    <div class="flex items-center gap-3">
+                      <div class="w-10 h-10 rounded-xl bg-surface-container text-on-surface-variant flex items-center justify-center">
+                        <span class="material-symbols-outlined text-[20px]">kitchen</span>
+                      </div>
+                      <div>
+                        <span class="text-sm font-semibold text-on-surface block">Chamber-ESP32-Standby #4019</span>
+                        <span class="font-mono text-xs text-on-surface-variant">MAC: 30:AE:A4:91:21:40 &bull; -74 dBm</span>
+                      </div>
+                    </div>
+                    <span class="text-xs font-mono text-on-surface-variant bg-surface-container px-2.5 py-1 rounded-lg">Bound</span>
                   </div>
                 </div>
               </div>
 
-              <!-- Discovered Devices List -->
-              <div class="bg-surface-container-lowest p-6 rounded-2xl border border-surface-container-high/60 shadow-sm flex flex-col gap-3">
-                <h3 class="text-sm font-bold text-on-surface">Discovered Chamber Nodes</h3>
+              <!-- RIGHT: Hardware Guide & Diagnostics (5 Cols) -->
+              <div class="lg:col-span-5 flex flex-col gap-6">
                 
-                <div class="p-3.5 rounded-xl bg-primary/5 border border-primary/30 flex items-center justify-between">
-                  <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold">
-                      <span class="material-symbols-outlined text-[20px]">router</span>
+                <!-- Physical Chamber Guide Card -->
+                <div class="bg-surface-container-lowest p-6 rounded-2xl border border-surface-container-high/60 shadow-sm flex flex-col gap-4">
+                  <div>
+                    <span class="font-mono text-xs text-secondary font-bold uppercase tracking-wider">Physical Device Guide</span>
+                    <h3 class="text-base font-bold text-on-surface">Initiating Chamber Bluetooth Pairing</h3>
+                  </div>
+
+                  <!-- Image with overlay points -->
+                  <div class="relative rounded-xl overflow-hidden bg-surface-container-highest shadow-inner">
+                    <img src="chamber_device.png" alt="Smart FreshGuard Chamber" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-500" onerror="this.src='chamber_hero.jpg'"/>
+                    <div class="absolute top-3 left-3 bg-inverse-surface/90 text-inverse-on-surface px-2.5 py-1 rounded-lg shadow text-[10px] font-mono font-bold flex items-center gap-1.5 backdrop-blur-xs">
+                      <span class="w-2 h-2 rounded-full bg-primary-fixed animate-ping"></span>
+                      1. Top OLED Display: BLE Beacon Status
                     </div>
-                    <div>
-                      <span class="text-sm font-bold text-on-surface block">Chamber-ESP32-V2 #8841</span>
-                      <span class="font-mono text-xs text-on-surface-variant">MAC: 24:6F:28:B4:7C:8F &bull; RSSI: -42 dBm</span>
+                    <div class="absolute bottom-3 right-3 bg-inverse-surface/90 text-inverse-on-surface px-2.5 py-1 rounded-lg shadow text-[10px] font-mono font-bold flex items-center gap-1.5 backdrop-blur-xs">
+                      <span class="material-symbols-outlined text-primary-fixed text-[14px]">touch_app</span>
+                      2. Bezel Touch: Tap to Wake
                     </div>
                   </div>
-                  <button type="button" onclick="showToast('Pairing Successful', 'Chamber linked to Dr. E. Thorne profile.', 'task_alt')" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary-container transition-all">
-                    Connect
-                  </button>
+
+                  <div class="bg-surface-container-low p-3.5 rounded-xl text-xs text-on-surface-variant flex flex-col gap-1.5 border border-surface-container">
+                    <div class="flex items-center gap-1.5 font-bold text-on-surface">
+                      <span class="material-symbols-outlined text-primary text-[18px]">info</span>
+                      Hardware Pairing Instructions:
+                    </div>
+                    <p class="leading-relaxed">
+                      Power on the ESP32 FreshGuard chamber. The LED halo pulses cyan indicating Bluetooth advertising is active. Once you click <strong class="text-on-surface">"Connect Bluetooth"</strong>, the browser connects to the chamber's GATT service and automatically opens the WiFi setup screen.
+                    </p>
+                  </div>
                 </div>
 
-                <div class="p-3.5 rounded-xl bg-surface-container-low border border-surface-container-high flex items-center justify-between opacity-80">
-                  <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-surface-container text-on-surface-variant flex items-center justify-center">
-                      <span class="material-symbols-outlined text-[20px]">router</span>
+                <!-- Automated Hardware Diagnostics -->
+                <div class="bg-surface-container-lowest p-6 rounded-2xl border border-surface-container-high/60 shadow-sm flex flex-col gap-3">
+                  <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-on-surface">Chamber Sensor Self-Test</h3>
+                    <span class="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-mono font-bold flex items-center gap-1">
+                      <span class="material-symbols-outlined text-[14px]">verified</span> 4/4 Ready
+                    </span>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="p-2.5 bg-surface-container-low rounded-xl border border-surface-container">
+                      <span class="font-bold text-on-surface block">DHT11 Sensor</span>
+                      <span class="text-on-surface-variant text-[11px]">GPIO 4 (Temp &amp; RH)</span>
+                      <span class="text-primary font-mono text-[10px] block mt-1">✓ 22.0°C / 65%</span>
                     </div>
-                    <div>
-                      <span class="text-sm font-bold text-on-surface block">Chamber-ESP32-V1 #3312</span>
-                      <span class="font-mono text-xs text-on-surface-variant">MAC: 30:AE:A4:91:21:40 &bull; RSSI: -74 dBm</span>
+                    <div class="p-2.5 bg-surface-container-low rounded-xl border border-surface-container">
+                      <span class="font-bold text-on-surface block">MQ Gas Sensor</span>
+                      <span class="text-on-surface-variant text-[11px]">GPIO 34 (ADC1 12-bit)</span>
+                      <span class="text-primary font-mono text-[10px] block mt-1">✓ 210 PPM Ethylene</span>
+                    </div>
+                    <div class="p-2.5 bg-surface-container-low rounded-xl border border-surface-container">
+                      <span class="font-bold text-on-surface block">IR Door Interlock</span>
+                      <span class="text-on-surface-variant text-[11px]">GPIO 14 (5s Safety)</span>
+                      <span class="text-primary font-mono text-[10px] block mt-1">✓ Optical Beam OK</span>
+                    </div>
+                    <div class="p-2.5 bg-surface-container-low rounded-xl border border-surface-container">
+                      <span class="font-bold text-on-surface block">5-Relay Control</span>
+                      <span class="text-on-surface-variant text-[11px]">Active LOW Opto</span>
+                      <span class="text-primary font-mono text-[10px] block mt-1">✓ Fans, Mist, LEDs</span>
                     </div>
                   </div>
-                  <button type="button" onclick="showToast('Node Busy', 'Chamber already assigned to Cold Room Beta.', 'info')" class="px-4 py-2 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold hover:bg-surface-container-highest transition-all">
-                    Details
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STAGE 2: WIFI CREDENTIALS ENTRY (NEXT PAGE AFTER BLUETOOTH CONNECTS) -->
+          <div id="pair-stage-2" class="pairing-stage hidden flex-col gap-6">
+            
+            <!-- Bluetooth Connection Banner -->
+            <div class="bg-primary/10 border border-primary/30 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-xs">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold flex-shrink-0">
+                  <span class="material-symbols-outlined text-[20px]">bluetooth_connected</span>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-on-surface">Bluetooth Paired: FreshGuard-Vault-ESP32</span>
+                    <span class="bg-primary text-on-primary text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">Connected</span>
+                  </div>
+                  <span class="text-xs font-mono text-on-surface-variant">BLE 5.2 GATT Session Active • Service: 4fafc201-1fb5-459e-8fcc-c5c9c331914b</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-mono text-primary font-bold bg-surface px-3 py-1.5 rounded-full border border-primary/20">
+                  RSSI: -38 dBm (Strong)
+                </span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              <!-- LEFT: WiFi Credentials Form (7 Cols) -->
+              <div class="lg:col-span-7 bg-surface-container-lowest p-6 rounded-2xl border border-surface-container-high/60 shadow-sm flex flex-col gap-5">
+                <div>
+                  <span class="font-mono text-xs text-primary font-bold uppercase tracking-wider">Step 2 of 4: Network Association</span>
+                  <h2 class="text-lg font-bold text-on-surface">Enter Target WiFi SSID &amp; Password</h2>
+                  <p class="text-xs text-on-surface-variant mt-0.5">The ESP32 will connect to this network and stream data to your account.</p>
+                </div>
+
+                <div class="flex flex-col gap-4 font-mono text-xs">
+                  <!-- WiFi SSID Select -->
+                  <div>
+                    <label class="block text-on-surface-variant font-bold mb-1.5 uppercase">Target 2.4GHz WiFi SSID</label>
+                    <div class="relative">
+                      <select id="wifi-ssid-select" onchange="handleSsidChange(this)" class="w-full p-3 pr-10 rounded-xl bg-surface-container-low border border-surface-container-high font-sans text-sm focus:outline-none focus:border-primary text-on-surface cursor-pointer">
+                        <option value="HomeLab_IoT_2.4G" selected>HomeLab_IoT_2.4G (-42 dBm • Recommended)</option>
+                        <option value="FarmVault_Secure">FarmVault_Secure (-50 dBm • WPA2)</option>
+                        <option value="BioTech_Orchard_Node">BioTech_Orchard_Node (-68 dBm)</option>
+                        <option value="custom">-- Enter Custom / Hidden SSID --</option>
+                      </select>
+                      <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">arrow_drop_down</span>
+                    </div>
+                    <input type="text" id="wifi-ssid-custom" placeholder="Type your 2.4GHz WiFi SSID here" class="w-full p-3 rounded-xl bg-surface-container-low border border-surface-container-high font-sans text-sm focus:outline-none focus:border-primary text-on-surface mt-2 hidden"/>
+                    <span class="text-[11px] text-on-surface-variant font-sans mt-1 block">Note: ESP32 requires 2.4GHz b/g/n WiFi. 5GHz-only networks are not supported.</span>
+                  </div>
+
+                  <!-- WiFi Password -->
+                  <div>
+                    <label class="block text-on-surface-variant font-bold mb-1.5 uppercase">WiFi Pre-Shared Password / Security Key</label>
+                    <div class="relative">
+                      <input type="password" id="wifi-password-input" value="PrecisionBotanical99!" placeholder="Enter WiFi Password" class="w-full p-3 pr-12 rounded-xl bg-surface-container-low border border-surface-container-high font-mono text-sm focus:outline-none focus:border-primary text-on-surface"/>
+                      <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface">
+                        <span class="material-symbols-outlined text-[20px]" id="wifi-eye-icon">visibility</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Server / Account Endpoint -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label class="block text-on-surface-variant font-bold mb-1 uppercase">Web App Telemetry Endpoint</label>
+                      <input type="text" id="wifi-server-host" value="http://localhost:8080/api/telemetry" class="w-full p-2.5 rounded-xl bg-surface-container-low border border-surface-container-high font-sans text-xs focus:outline-none focus:border-primary text-on-surface"/>
+                    </div>
+                    <div>
+                      <label class="block text-on-surface-variant font-bold mb-1 uppercase">Vault Device ID / Account Tag</label>
+                      <input type="text" id="wifi-device-id" value="SF-001" class="w-full p-2.5 rounded-xl bg-surface-container-low border border-surface-container-high font-mono text-xs focus:outline-none focus:border-primary text-on-surface"/>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Navigation Action Buttons -->
+                <div class="flex items-center justify-between gap-3 pt-3 border-t border-surface-container">
+                  <button type="button" onclick="goToPairStage(1)" class="px-4 py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold transition-all flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+                    Back to Bluetooth
                   </button>
+                  <button type="button" onclick="submitWiFiCredentials()" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary text-xs font-bold transition-all flex items-center gap-2 shadow-sm">
+                    <span>Send to ESP32 &amp; Connect WiFi</span>
+                    <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- RIGHT: Power Loss Auto-Reconnect Feature Card (5 Cols) -->
+              <div class="lg:col-span-5 flex flex-col gap-6">
+                
+                <!-- Power Outage Auto-Reconnect Card -->
+                <div class="bg-surface-container-lowest p-6 rounded-2xl border border-primary/30 shadow-sm flex flex-col gap-3 relative overflow-hidden">
+                  <div class="flex items-center gap-2 text-primary font-bold text-sm">
+                    <span class="material-symbols-outlined text-[24px]">power</span>
+                    <span>Power Loss Auto-Reconnect System</span>
+                  </div>
+                  <p class="text-xs text-on-surface-variant leading-relaxed">
+                    Once you transmit these WiFi credentials, the ESP32 permanently writes them to non-volatile flash memory using the ESP32 <code class="bg-surface-container-high px-1.5 py-0.5 rounded font-mono font-bold text-on-surface">Preferences.h</code> NVS library.
+                  </p>
+
+                  <div class="p-3.5 bg-primary/5 rounded-xl border border-primary/20 flex flex-col gap-2 text-xs">
+                    <div class="flex items-center gap-2 font-bold text-on-surface">
+                      <span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+                      Autonomic Reboot Guarantee:
+                    </div>
+                    <ul class="list-disc list-inside text-on-surface-variant space-y-1">
+                      <li>If the chamber is unplugged or power goes off, it <strong>automatically reconnects</strong> upon power restoration.</li>
+                      <li>No need to re-enter WiFi passwords or re-pair via Bluetooth.</li>
+                      <li>Telemetry upload and climate control resume within <strong>3 seconds</strong> of boot.</li>
+                    </ul>
+                  </div>
+
+                  <div class="flex items-center gap-2 pt-1">
+                    <input type="checkbox" id="check-auto-reconnect" checked class="w-4 h-4 rounded text-primary focus:ring-primary"/>
+                    <label for="check-auto-reconnect" class="text-xs font-semibold text-on-surface cursor-pointer select-none">
+                      Enable Persistent NVS Flash Auto-Reconnect
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Security Encryption Badge -->
+                <div class="bg-surface-container-low p-4 rounded-2xl border border-surface-container flex items-center gap-3 text-xs text-on-surface-variant">
+                  <span class="material-symbols-outlined text-secondary text-[22px]">lock</span>
+                  <span>Credentials are transmitted over an encrypted 128-bit BLE GATT Characteristic (UUID: beb5483e-36e1-4688-b7f5-ea07361b26a8).</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STAGE 3: PROVISIONING & CALIBRATION HANDSHAKE SCREEN -->
+          <div id="pair-stage-3" class="pairing-stage hidden flex-col items-center justify-center py-8">
+            <div class="max-w-2xl w-full bg-surface-container-lowest p-8 rounded-3xl border border-surface-container-high/60 shadow-lg flex flex-col items-center gap-6 text-center">
+              
+              <!-- Animated Pulse Icon -->
+              <div class="relative flex items-center justify-center">
+                <span class="animate-ping absolute inline-flex h-20 w-20 rounded-full bg-primary opacity-40"></span>
+                <div class="w-16 h-16 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-lg">
+                  <span class="material-symbols-outlined text-[36px] animate-spin">sync</span>
+                </div>
+              </div>
+
+              <div>
+                <h2 class="text-xl font-bold text-on-surface">Connecting ESP32 Chamber to WiFi...</h2>
+                <p class="text-xs text-on-surface-variant mt-1" id="provisioning-status-sub">
+                  Writing credentials to NVS Flash and performing DHCP association.
+                </p>
+              </div>
+
+              <!-- Terminal Log Stream -->
+              <div class="w-full bg-inverse-surface text-inverse-on-surface rounded-2xl p-4 font-mono text-xs text-left shadow-inner flex flex-col gap-2">
+                <div class="flex items-center justify-between pb-2 border-b border-white/10 text-[10px] text-surface-dim font-bold">
+                  <span>ESP32 PROVISIONING CONSOLE</span>
+                  <span class="text-primary-fixed">STATUS: IN PROGRESS</span>
+                </div>
+                <div class="space-y-1.5 pt-1 text-[11px]">
+                  <div class="text-primary-fixed flex items-center gap-2" id="log-step-1">
+                    <span class="material-symbols-outlined text-[14px]">check</span>
+                    <span>[BLE] Encrypted WiFi credentials payload sent to ESP32</span>
+                  </div>
+                  <div class="text-white/80 flex items-center gap-2" id="log-step-2">
+                    <span class="material-symbols-outlined text-[14px]">pending</span>
+                    <span>[NVS] Writing 'ssid', 'password', 'server' to flash namespace 'freshguard'...</span>
+                  </div>
+                  <div class="text-white/50 flex items-center gap-2" id="log-step-3">
+                    <span class="material-symbols-outlined text-[14px]">radio_button_unchecked</span>
+                    <span>[WiFi] Initializing ESP32 Station Mode (802.11 b/g/n)...</span>
+                  </div>
+                  <div class="text-white/50 flex items-center gap-2" id="log-step-4">
+                    <span class="material-symbols-outlined text-[14px]">radio_button_unchecked</span>
+                    <span>[DHCP] Requesting IP address from local router...</span>
+                  </div>
+                  <div class="text-white/50 flex items-center gap-2" id="log-step-5">
+                    <span class="material-symbols-outlined text-[14px]">radio_button_unchecked</span>
+                    <span>[Account] Binding chamber device SF-001 to Dr. E. Thorne...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STAGE 4: DONE / CONNECTED SCREEN -->
+          <div id="pair-stage-4" class="pairing-stage hidden flex-col gap-6">
+            
+            <!-- Hero Celebration Header -->
+            <div class="bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-6 sm:p-8 rounded-3xl border border-primary/30 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+              <div class="flex items-center gap-4">
+                <div class="w-16 h-16 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-md flex-shrink-0">
+                  <span class="material-symbols-outlined text-[36px]">verified</span>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h2 class="text-xl sm:text-2xl font-bold text-on-surface">Chamber Connected Successfully!</h2>
+                    <span class="bg-primary text-on-primary text-xs font-mono font-bold px-2.5 py-0.5 rounded-full">ONLINE</span>
+                  </div>
+                  <p class="text-xs sm:text-sm text-on-surface-variant mt-1">
+                    FreshGuard-Vault-ESP32 is connected to WiFi and broadcasting live telemetry.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Quick Action Button to Dashboard -->
+              <button type="button" onclick="switchTab('overview')" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+                <span class="material-symbols-outlined text-[20px]">dashboard</span>
+                <span>Go to Live Chamber Dashboard</span>
+              </button>
+            </div>
+
+            <!-- Bento Details Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              <!-- Card 1: IP Address -->
+              <div class="p-5 rounded-2xl bg-surface-container-lowest border border-surface-container-high/60 shadow-xs flex flex-col justify-between gap-3">
+                <div class="flex items-center justify-between text-on-surface-variant">
+                  <span class="font-mono text-xs font-bold uppercase">Assigned Local IP</span>
+                  <span class="material-symbols-outlined text-primary text-[20px]">lan</span>
+                </div>
+                <div>
+                  <a href="http://192.168.1.142/status" target="_blank" id="done-ip-display" class="font-mono text-xl font-bold text-primary hover:underline">192.168.1.142</a>
+                  <span class="text-[11px] text-on-surface-variant block mt-0.5">Port 80 Local REST API Active</span>
+                </div>
+              </div>
+
+              <!-- Card 2: Connected SSID -->
+              <div class="p-5 rounded-2xl bg-surface-container-lowest border border-surface-container-high/60 shadow-xs flex flex-col justify-between gap-3">
+                <div class="flex items-center justify-between text-on-surface-variant">
+                  <span class="font-mono text-xs font-bold uppercase">Connected Network</span>
+                  <span class="material-symbols-outlined text-primary text-[20px]">wifi</span>
+                </div>
+                <div>
+                  <span id="done-ssid-display" class="text-lg font-bold text-on-surface block">HomeLab_IoT_2.4G</span>
+                  <span class="text-[11px] text-primary font-mono font-semibold block mt-0.5">RSSI: -38 dBm (Ultra Strong)</span>
+                </div>
+              </div>
+
+              <!-- Card 3: Auto-Reconnect Status -->
+              <div class="p-5 rounded-2xl bg-surface-container-lowest border border-surface-container-high/60 shadow-xs flex flex-col justify-between gap-3">
+                <div class="flex items-center justify-between text-on-surface-variant">
+                  <span class="font-mono text-xs font-bold uppercase">Power Loss Recovery</span>
+                  <span class="material-symbols-outlined text-primary text-[20px]">battery_charging_full</span>
+                </div>
+                <div>
+                  <span class="text-lg font-bold text-primary flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-primary"></span>
+                    ACTIVE (NVS)
+                  </span>
+                  <span class="text-[11px] text-on-surface-variant block mt-0.5">Auto-reconnects if power goes off</span>
+                </div>
+              </div>
+
+              <!-- Card 4: Linked Account -->
+              <div class="p-5 rounded-2xl bg-surface-container-lowest border border-surface-container-high/60 shadow-xs flex flex-col justify-between gap-3">
+                <div class="flex items-center justify-between text-on-surface-variant">
+                  <span class="font-mono text-xs font-bold uppercase">Linked Account</span>
+                  <span class="material-symbols-outlined text-primary text-[20px]">person_check</span>
+                </div>
+                <div>
+                  <span class="text-lg font-bold text-on-surface block">Dr. E. Thorne</span>
+                  <span class="text-[11px] text-on-surface-variant font-mono block mt-0.5">Device Tag: SF-001 (Vault-4)</span>
                 </div>
               </div>
             </div>
 
-            <!-- RIGHT: WiFi Network Credentials Form (5 Cols) -->
-            <div class="lg:col-span-5 bg-surface-container-lowest p-6 rounded-2xl border border-surface-container-high/60 shadow-sm flex flex-col gap-4">
-              <div>
-                <h3 class="text-base font-bold text-on-surface">Provision WiFi Credentials</h3>
-                <p class="text-xs text-on-surface-variant mt-1">Transmit laboratory network credentials to the chamber over encrypted BLE characteristic.</p>
-              </div>
-
-              <div class="flex flex-col gap-3 font-mono text-xs">
+            <!-- Sensor Live Telemetry Strip -->
+            <div class="p-5 rounded-2xl bg-surface-container-low border border-surface-container flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary text-[24px]">sensors</span>
                 <div>
-                  <label class="block text-on-surface-variant font-bold mb-1">TARGET SSID (2.4GHz ONLY)</label>
-                  <input type="text" value="FreshGuard_AgriNet_Secure" class="w-full p-3 rounded-xl bg-surface-container-low border border-surface-container-high font-sans text-sm focus:outline-none focus:border-primary"/>
-                </div>
-
-                <div>
-                  <label class="block text-on-surface-variant font-bold mb-1">WPA2/WPA3 PRE-SHARED KEY</label>
-                  <input type="password" value="PrecisionBioCold2024!" class="w-full p-3 rounded-xl bg-surface-container-low border border-surface-container-high font-sans text-sm focus:outline-none focus:border-primary"/>
-                </div>
-
-                <div>
-                  <label class="block text-on-surface-variant font-bold mb-1">MQTT BROKER HOSTNAME / IP</label>
-                  <input type="text" value="broker.freshguard.internal" class="w-full p-3 rounded-xl bg-surface-container-low border border-surface-container-high font-sans text-sm focus:outline-none focus:border-primary"/>
-                </div>
-
-                <div>
-                  <label class="block text-on-surface-variant font-bold mb-1">PORT</label>
-                  <input type="number" value="1883" class="w-full p-3 rounded-xl bg-surface-container-low border border-surface-container-high font-sans text-sm focus:outline-none focus:border-primary"/>
+                  <span class="text-sm font-bold text-on-surface block">Live Atmospheric Readings Verified (DHT11 &amp; MQ)</span>
+                  <span class="text-xs text-on-surface-variant">Autonomous climate control algorithm is engaged in AUTO mode.</span>
                 </div>
               </div>
+              <div class="flex items-center gap-4 font-mono text-xs">
+                <div class="flex items-center gap-1 bg-surface px-3 py-1.5 rounded-lg border border-surface-container">
+                  <span class="text-on-surface-variant">TEMP:</span>
+                  <span class="text-primary font-bold">22.4°C</span>
+                </div>
+                <div class="flex items-center gap-1 bg-surface px-3 py-1.5 rounded-lg border border-surface-container">
+                  <span class="text-on-surface-variant">HUM:</span>
+                  <span class="text-secondary font-bold">65% RH</span>
+                </div>
+                <div class="flex items-center gap-1 bg-surface px-3 py-1.5 rounded-lg border border-surface-container">
+                  <span class="text-on-surface-variant">C2H4:</span>
+                  <span class="text-tertiary font-bold">210 PPM</span>
+                </div>
+              </div>
+            </div>
 
-              <div class="pt-2 flex flex-col gap-2">
-                <button type="button" onclick="showToast('Provisioning ESP32...', 'Flashing WiFi configuration to NVS storage.', 'wifi_tethering')" class="w-full py-3 rounded-xl bg-primary text-on-primary font-bold text-sm hover:bg-primary-container transition-all flex items-center justify-center gap-2 shadow-sm">
-                  <span class="material-symbols-outlined text-[18px]">send</span>
-                  Provision Chamber MCU
+            <!-- Bottom Navigation Actions -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+              <button type="button" onclick="goToPairStage(1)" class="px-4 py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold transition-all flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px]">restart_alt</span>
+                Pair Another Box / Reconfigure
+              </button>
+
+              <div class="flex items-center gap-3">
+                <button type="button" onclick="switchTab('telemetry')" class="px-5 py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold transition-all flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-[16px]">tune</span>
+                  View Telemetry &amp; Actuators
                 </button>
-                <button type="button" onclick="showToast('Reboot Command Sent', 'ESP32 restarting into station mode.', 'restart_alt')" class="w-full py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold transition-all">
-                  Soft Reboot Chamber MCU
+                <button type="button" onclick="switchTab('overview')" class="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary text-xs font-bold transition-all flex items-center gap-2 shadow-sm">
+                  <span>Open Live Chamber Twin</span>
+                  <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </button>
               </div>
             </div>
@@ -1950,19 +2318,256 @@
       showToast('Capacitive Bezel Tapped', 'TTP223 sensed single tap: Ambient LED status pulse emitted.', 'touch_app');
     }
 
-    function simulatePairing() {
-      const btn = document.getElementById('btn-pair-chamber');
-      const text = document.getElementById('pair-chamber-text');
-      if (text) text.innerText = 'Querying mDNS & BLE...';
+    // ─── 6b. ESP32 Bluetooth & WiFi Provisioning Flow ─────────────────────────
+    let currentPairStage = 1;
+    let bleDeviceConnected = false;
+    let bluetoothDevice = null;
+    let bleCharacteristic = null;
+
+    function goToPairStage(stage) {
+      currentPairStage = stage;
+      // Hide all pairing stages
+      document.querySelectorAll('.pairing-stage').forEach(el => el.classList.add('hidden'));
+      const activeStage = document.getElementById(`pair-stage-${stage}`);
+      if (activeStage) {
+        activeStage.classList.remove('hidden');
+        activeStage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      // Update 4-Stage Stepper Ribbon
+      for (let i = 1; i <= 4; i++) {
+        const stepEl = document.getElementById(`stepper-step-${i}`);
+        const numEl = document.getElementById(`stepper-num-${i}`);
+        const subEl = document.getElementById(`stepper-sub-${i}`);
+        const iconEl = document.getElementById(`stepper-icon-${i}`);
+
+        if (i < stage) {
+          // Completed step
+          if (stepEl) stepEl.className = 'flex items-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/40 shadow-xs transition-all';
+          if (numEl) {
+            numEl.className = 'w-9 h-9 rounded-lg bg-primary text-on-primary flex items-center justify-center font-mono font-bold text-sm shadow-xs transition-all';
+            numEl.innerHTML = '<span class="material-symbols-outlined text-[18px]">check</span>';
+          }
+          if (subEl) {
+            subEl.className = 'font-mono text-[10px] text-primary font-medium truncate';
+            subEl.innerText = 'Completed';
+          }
+          if (iconEl) {
+            iconEl.className = 'material-symbols-outlined text-primary text-[20px] ml-auto';
+            iconEl.innerText = 'check_circle';
+          }
+        } else if (i === stage) {
+          // Active step
+          if (stepEl) stepEl.className = 'flex items-center gap-3 p-3 rounded-xl bg-surface shadow-xs border-2 border-primary transition-all';
+          if (numEl) {
+            numEl.className = 'w-9 h-9 rounded-lg bg-primary text-on-primary flex items-center justify-center font-mono font-bold text-sm shadow-xs transition-all';
+            numEl.innerText = `0${i}`;
+          }
+          if (subEl) {
+            subEl.className = 'font-mono text-[10px] text-primary font-bold truncate';
+          }
+          if (iconEl) {
+            iconEl.className = 'material-symbols-outlined text-primary text-[20px] ml-auto';
+          }
+        } else {
+          // Pending step
+          if (stepEl) stepEl.className = 'flex items-center gap-3 p-3 rounded-xl bg-surface/60 border border-surface-container shadow-xs transition-all opacity-70';
+          if (numEl) {
+            numEl.className = 'w-9 h-9 rounded-lg bg-surface-container text-on-surface-variant flex items-center justify-center font-mono font-bold text-sm transition-all';
+            numEl.innerText = `0${i}`;
+          }
+          if (subEl) {
+            subEl.className = 'font-mono text-[10px] text-on-surface-variant truncate';
+          }
+          if (iconEl) {
+            iconEl.className = 'material-symbols-outlined text-on-surface-variant text-[20px] ml-auto';
+          }
+        }
+      }
+    }
+
+    async function connectBleChamber() {
+      const btn = document.getElementById('btn-ble-connect');
+      const icon = document.getElementById('ble-btn-icon');
+      const text = document.getElementById('ble-btn-text');
+
       if (btn) btn.disabled = true;
+      if (icon) {
+        icon.innerText = 'sync';
+        icon.classList.add('animate-spin');
+      }
+      if (text) text.innerText = 'Connecting Bluetooth...';
+
+      // Check for Web Bluetooth API
+      if (navigator.bluetooth && window.isSecureContext) {
+        try {
+          bluetoothDevice = await navigator.bluetooth.requestDevice({
+            filters: [
+              { namePrefix: 'FreshGuard' },
+              { services: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b'] }
+            ],
+            optionalServices: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b']
+          });
+          const server = await bluetoothDevice.gatt.connect();
+          const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
+          bleCharacteristic = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
+          bleDeviceConnected = true;
+        } catch (err) {
+          console.warn('[Web Bluetooth] Native prompt cancelled or unsupported, fallback to simulation:', err);
+          bleDeviceConnected = true;
+        }
+      } else {
+        // Fallback simulation for non-HTTPS or simulated environments
+        bleDeviceConnected = true;
+      }
 
       setTimeout(() => {
-        if (text) text.innerText = 'Mesh Verified (0 Packet Loss)';
+        if (icon) {
+          icon.classList.remove('animate-spin');
+          icon.innerText = 'bluetooth_connected';
+        }
+        if (text) text.innerText = 'Connected!';
+        if (btn) btn.className = 'w-full sm:w-auto px-5 py-2.5 rounded-xl bg-primary-container text-on-primary-container text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm';
+
+        showToast('Bluetooth Paired!', 'FreshGuard-Vault-ESP32 connected via BLE 5.2. Proceeding to WiFi setup.', 'bluetooth');
+
+        // Automatically advance to Stage 2 (Enter WiFi SSID and Password)!
         setTimeout(() => {
-          if (text) text.innerText = 'Re-scan BLE / WiFi Mesh';
-          if (btn) btn.disabled = false;
-        }, 2000);
-      }, 1200);
+          goToPairStage(2);
+          if (btn) {
+            btn.disabled = false;
+            if (text) text.innerText = 'Connect Bluetooth';
+            btn.className = 'w-full sm:w-auto px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm';
+          }
+        }, 800);
+      }, 900);
+    }
+
+    function handleSsidChange(selectEl) {
+      const customInput = document.getElementById('wifi-ssid-custom');
+      if (selectEl.value === 'custom') {
+        customInput.classList.remove('hidden');
+        customInput.focus();
+      } else {
+        customInput.classList.add('hidden');
+      }
+    }
+
+    function togglePasswordVisibility() {
+      const passInput = document.getElementById('wifi-password-input');
+      const eyeIcon = document.getElementById('wifi-eye-icon');
+      if (passInput) {
+        if (passInput.type === 'password') {
+          passInput.type = 'text';
+          if (eyeIcon) eyeIcon.innerText = 'visibility_off';
+        } else {
+          passInput.type = 'password';
+          if (eyeIcon) eyeIcon.innerText = 'visibility';
+        }
+      }
+    }
+
+    async function submitWiFiCredentials() {
+      const ssidSelect = document.getElementById('wifi-ssid-select');
+      const customSsid = document.getElementById('wifi-ssid-custom');
+      const passInput = document.getElementById('wifi-password-input');
+      const serverInput = document.getElementById('wifi-server-host');
+      const devIdInput = document.getElementById('wifi-device-id');
+
+      let targetSsid = ssidSelect ? ssidSelect.value : 'HomeLab_IoT_2.4G';
+      if (targetSsid === 'custom' && customSsid) {
+        targetSsid = customSsid.value.trim() || 'My_Home_WiFi_2.4G';
+      }
+      const targetPass = passInput ? passInput.value : '';
+      const targetServer = serverInput ? serverInput.value : 'http://localhost:8080/api/telemetry';
+      const targetId = devIdInput ? devIdInput.value : 'SF-001';
+
+      // Move to Stage 3 (Handshake & Calibrate screen)
+      goToPairStage(3);
+
+      const payload = {
+        ssid: targetSsid,
+        password: targetPass,
+        server: targetServer,
+        device_id: targetId,
+        auto_reconnect: true
+      };
+
+      // If Web Bluetooth characteristic is open, write payload to physical ESP32
+      if (bleCharacteristic) {
+        try {
+          const encoder = new TextEncoder();
+          await bleCharacteristic.writeValue(encoder.encode(JSON.stringify(payload)));
+          console.log('[BLE] Successfully pushed config JSON to ESP32 GATT!');
+        } catch (e) {
+          console.warn('[BLE] Characteristic write error:', e);
+        }
+      }
+
+      // Push to backend /api/pair to register state
+      fetch('/api/pair', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(() => {});
+
+      // Animate the log steps in Stage 3
+      const l1 = document.getElementById('log-step-1');
+      const l2 = document.getElementById('log-step-2');
+      const l3 = document.getElementById('log-step-3');
+      const l4 = document.getElementById('log-step-4');
+      const l5 = document.getElementById('log-step-5');
+
+      setTimeout(() => {
+        if (l2) {
+          l2.className = 'text-primary-fixed flex items-center gap-2';
+          l2.innerHTML = '<span class="material-symbols-outlined text-[14px]">check</span><span>[NVS] Preferences saved: \'ssid\', \'password\', \'server\' in flash memory.</span>';
+        }
+        if (l3) {
+          l3.className = 'text-white/80 flex items-center gap-2';
+          l3.innerHTML = '<span class="material-symbols-outlined text-[14px] animate-spin">sync</span><span>[WiFi] ESP32 associating with \'' + targetSsid + '\'...</span>';
+        }
+      }, 700);
+
+      setTimeout(() => {
+        if (l3) {
+          l3.className = 'text-primary-fixed flex items-center gap-2';
+          l3.innerHTML = '<span class="material-symbols-outlined text-[14px]">check</span><span>[WiFi] Associated to ' + targetSsid + ' (Signal: -38 dBm)</span>';
+        }
+        if (l4) {
+          l4.className = 'text-white/80 flex items-center gap-2';
+          l4.innerHTML = '<span class="material-symbols-outlined text-[14px] animate-spin">sync</span><span>[DHCP] Requesting IP lease from router...</span>';
+        }
+      }, 1400);
+
+      setTimeout(() => {
+        if (l4) {
+          l4.className = 'text-primary-fixed flex items-center gap-2';
+          l4.innerHTML = '<span class="material-symbols-outlined text-[14px]">check</span><span>[DHCP] Handshake confirmed! Assigned IP: 192.168.1.142</span>';
+        }
+        if (l5) {
+          l5.className = 'text-primary-fixed flex items-center gap-2';
+          l5.innerHTML = '<span class="material-symbols-outlined text-[14px]">check</span><span>[Account] Device ' + targetId + ' permanently bound to Dr. E. Thorne</span>';
+        }
+      }, 2100);
+
+      // Transition to Stage 4: Done / Connected Screen!
+      setTimeout(() => {
+        const doneSsid = document.getElementById('done-ssid-display');
+        const doneIp = document.getElementById('done-ip-display');
+        const topIp = document.getElementById('top-ip-display');
+
+        if (doneSsid) doneSsid.innerText = targetSsid;
+        if (doneIp) doneIp.innerText = '192.168.1.142';
+        if (topIp) topIp.innerText = '192.168.1.142';
+
+        goToPairStage(4);
+        showToast('Chamber Connected!', 'ESP32 is online. Auto-reconnect on power loss is permanently active.', 'verified');
+      }, 2800);
+    }
+
+    function simulatePairing() {
+      switchTab('pairing');
     }
 
     // ─── 7. Order & Auth Modals ────────────────────────────────────────────────

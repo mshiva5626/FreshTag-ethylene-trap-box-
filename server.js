@@ -162,6 +162,49 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  if (pathname === '/api/pair' && req.method === 'POST') {
+    try {
+      const data = await parseJsonBody(req);
+      const ssid = data.ssid || "Default_WiFi";
+      globalState.ip_address = data.ip_address || "192.168.1.142";
+      globalState.hostname = data.hostname || "Chamber-ESP32-V2 #8841";
+      globalState.wifi_connected = true;
+      globalState.timestamp = new Date().toISOString().slice(0, 19);
+      return sendJson(res, 200, {
+        status: "CONNECTED",
+        ip: globalState.ip_address,
+        hostname: globalState.hostname,
+        ssid: ssid,
+        rssi: -42,
+        auto_reconnect: true
+      });
+    } catch (e) {
+      return sendJson(res, 400, { error: "Invalid JSON" });
+    }
+  }
+
+  if (pathname === '/api/door' && req.method === 'POST') {
+    try {
+      const data = await parseJsonBody(req);
+      const isDoorOpen = (data.door === "OPEN" || data.door === true);
+      globalState.door_status = isDoorOpen ? "OPEN" : "CLOSED";
+      globalState.state = isDoorOpen ? "DOOR_OPEN" : "NORMAL";
+      if (isDoorOpen) {
+        globalState.inlet_fan = "OFF";
+        globalState.outlet_fan = "OFF";
+        globalState.humidifier = "OFF";
+      } else {
+        globalState.inlet_fan = "ON";
+        globalState.outlet_fan = "ON";
+        globalState.humidifier = "ON";
+      }
+      globalState.timestamp = new Date().toISOString().slice(0, 19);
+      return sendJson(res, 200, { status: "success", door_status: globalState.door_status, state: globalState.state });
+    } catch (e) {
+      return sendJson(res, 400, { error: "Invalid JSON" });
+    }
+  }
+
   if (pathname === '/api/config') {
     if (req.method === 'GET') {
       try {
