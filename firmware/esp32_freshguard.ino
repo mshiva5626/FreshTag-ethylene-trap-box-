@@ -52,7 +52,7 @@
 #if defined(ARDUINOJSON_VERSION_MAJOR) && (ARDUINOJSON_VERSION_MAJOR >= 7)
   typedef JsonDocument FreshGuardJsonDoc;
 #else
-  typedef StaticJsonDocument<512> FreshGuardJsonDoc;
+  typedef StaticJsonDocument<768> FreshGuardJsonDoc;
 #endif
 
 // ======================== PIN ASSIGNMENTS ============================
@@ -99,13 +99,19 @@ enum SystemState {
 SystemState currentState     = STATE_NORMAL;
 String systemMode            = "AUTO"; // "AUTO" or "MANUAL"
 String deviceId              = "SF-001";
+String accountId             = "mshiva5626"; // Bound user account
 String serverHost            = "http://192.168.1.100:8080/api/telemetry";
 
-// Sensor Readings
+// Sensor Readings & Hardware Presence Flags
 float temperature            = 22.0;
 float humidity               = 65.0;
 int gasLevel                 = 210;
 bool isDoorOpen              = false;
+
+// Hardware Detection (True if sensor is physically attached and giving valid signals)
+bool dhtSensorExists         = false;
+bool gasSensorExists         = false;
+bool doorSensorExists        = true;
 
 // Actuator States
 bool inletFanState           = false;
@@ -164,15 +170,16 @@ class FreshGuardBLEServerCallbacks : public BLEServerCallbacks {
     bleClientConnected = true;
     Serial.println("\n[BLE] >>> Client Connected to FreshGuard Bluetooth! <<<");
     if (WiFi.status() == WL_CONNECTED) {
-      sendStatusBLE("STATUS:WIFI_ONLINE:" + WiFi.localIP().toString());
+      sendStatusBLE("STATUS:WIFI_ONLINE:" + WiFi.localIP().toString() + ":ACCOUNT:" + accountId);
     } else {
-      sendStatusBLE("STATUS:AWAITING_WIFI_CONFIG");
+      sendStatusBLE("STATUS:AWAITING_WIFI_CONFIG:ACCOUNT:" + accountId);
     }
   }
 
   void onDisconnect(BLEServer* pServer) {
     bleClientConnected = false;
-    Serial.println("[BLE] Client disconnected. Restarting BLE advertising.");
+    Serial.println("[BLE] Client disconnected. Restarting BLE advertising in pairing mode.");
+    delay(50);
     pServer->getAdvertising()->start();
   }
 };
@@ -247,10 +254,11 @@ void processWiFiConfig(String jsonPayload) {
     return;
   }
 
-  String newSsid = doc["ssid"] | "";
-  String newPass = doc["password"] | "";
-  String newServer = doc["server"] | "";
-  String newId = doc["device_id"] | "";
+  String newSsid    = doc["ssid"] | "";
+  String newPass    = doc["password"] | "";
+  String newServer  = doc["server"] | "";
+  String newId      = doc["device_id"] | "";
+  String newAccount = doc["account_id"] | doc["account"] | "";
 
   if (newSsid.length() == 0) {
     sendStatusBLE("ERROR:EMPTY_SSID");
@@ -269,18 +277,22 @@ void processWiFiConfig(String jsonPayload) {
     preferences.putString("device_id", newId);
     deviceId = newId;
   }
+  if (newAccount.length() > 0) {
+    preferences.putString("account_id", newAccount);
+    accountId = newAccount;
+  }
   preferences.putBool("configured", true);
   preferences.end();
 
-  Serial.println("[NVS] WiFi & Account credentials securely saved to Flash!");
-  sendStatusBLE("STATUS:CONNECTING_TO_WIFI");
+  Serial.printf("[NVS] WiFi & Account '%s' securely saved to Flash!\n", accountId.c_str());
+  sendStatusBLE("STATUS:CONNECTING_TO_WIFI:ACCOUNT:" + accountId);
 
   // Attempt connection
   bool success = connectToWiFi(newSsid.c_str(), newPass.c_str());
   if (success) {
-    sendStatusBLE("STATUS:CONNECTED:" + WiFi.localIP().toString());
+    sendStatusBLE("STATUS:CONNECTED:" + WiFi.localIP().toString() + ":ACCOUNT:" + accountId);
   } else {
-    sendStatusBLE("STATUS:WIFI_FAILED");
+    sendStatusBLE("STATUS:WIFI_FAILED:ACCOUNT:" + accountId);
   }
 }
 
@@ -363,30 +375,33 @@ void setup() {
   // Initialize BLE Provisioning Subsystem
   initBLE();
 
-  // Load Stored WiFi Credentials from Flash (Preferences NVS)
+  // Load Stored WiFi Credentials and Account from Flash (Preferences NVS)
   preferences.begin("freshguard", true); // read-only mode
   bool isConfigured   = preferences.getBool("configured", false);
   String savedSsid    = preferences.getString("ssid", "");
   String savedPass    = preferences.getString("password", "");
   String savedServer  = preferences.getString("server", "");
   String savedDevId   = preferences.getString("device_id", "");
+  String savedAccount = preferences.getString("account_id", "");
   preferences.end();
 
-  if (savedServer.length() > 0) serverHost = savedServer;
-  if (savedDevId.length() > 0)  deviceId   = savedDevId;
+  if (savedServer.length() > 0)  serverHost = savedServer;
+  if (savedDevId.length() > 0)   deviceId   = savedDevId;
+  if (savedAccount.length() > 0) accountId  = savedAccount;
 
   // Auto-Reconnect Logic (Handles power outage / re-plugging)
   if (isConfigured && savedSsid.length() > 0) {
-    Serial.printf("\n[Power Recovery] Found stored WiFi for '%s'. Auto-reconnecting...\n", savedSsid.c_str());
+    Serial.printf("\n[Power Recovery] Found stored WiFi for '%s' & Account '%s'. Auto-reconnecting...\n", 
+                  savedSsid.c_str(), accountId.c_str());
     bool ok = connectToWiFi(savedSsid.c_str(), savedPass.c_str());
     if (ok) {
-      sendStatusBLE("STATUS:AUTO_RECONNECTED:" + WiFi.localIP().toString());
+      sendStatusBLE("STATUS:AUTO_RECONNECTED:" + WiFi.localIP().toString() + ":ACCOUNT:" + accountId);
     } else {
-      sendStatusBLE("STATUS:SAVED_WIFI_UNAVAILABLE");
+      sendStatusBLE("STATUS:SAVED_WIFI_UNAVAILABLE:ACCOUNT:" + accountId);
     }
   } else {
-    Serial.println("\n[Provisioning] No WiFi configured. Waiting for Bluetooth pairing...");
-    sendStatusBLE("STATUS:WAITING_BLE_PROVISION");
+    Serial.printf("\n[Provisioning] No WiFi configured. Waiting for Bluetooth pairing for Account '%s'...\n", accountId.c_str());
+    sendStatusBLE("STATUS:WAITING_BLE_PROVISION:ACCOUNT:" + accountId);
   }
 
   // Initial door position check
@@ -446,17 +461,32 @@ void readSensors() {
   float h = dht.readHumidity();
   float t = dht.readTemperature();
 
-  if (!isnan(h) && !isnan(t)) {
+  // Retry once after brief delay if transient reading error
+  if (isnan(h) || isnan(t)) {
+    delay(50);
+    h = dht.readHumidity();
+    t = dht.readTemperature();
+  }
+
+  if (!isnan(h) && !isnan(t) && h >= 1.0 && h <= 100.0) {
     humidity = h;
     temperature = t;
+    dhtSensorExists = true;
   } else {
-    Serial.println("[DHT11] Warning: Failed to read from DHT11 sensor!");
+    dhtSensorExists = false;
+    Serial.println("[Hardware Detection] DHT11 sensor NOT detected or disconnected!");
   }
 
   // Read MQ Gas Sensor (ESP32 ADC1 is 12-bit: 0-4095)
-  // Scale to standard PPM equivalent:
   int rawGas = analogRead(MQ_PIN);
-  gasLevel = rawGas >> 2; // Divide by 4 to map 12-bit to 0-1023 reference
+  // An active MQ sensor has an internal load divider producing baseline > 30 ADC counts (~25mV)
+  if (rawGas > 30 && rawGas < 4085) {
+    gasLevel = rawGas >> 2; // Map 12-bit to 0-1023 reference
+    gasSensorExists = true;
+  } else {
+    gasSensorExists = false;
+    Serial.println("[Hardware Detection] MQ Gas sensor NOT detected (pin floating or disconnected)!");
+  }
 }
 
 // ======================== DOOR WORKFLOW & SAFETY INTERLOCK ===========
@@ -546,25 +576,30 @@ void handleDoorWorkflow() {
 void executeAutoClimateControl() {
   if (isDoorOpen) return; // Strict safety interlock
 
-  // 1. Ultrasonic Humidity Control
-  if (humidity < humidityMinThreshold) {
-    humidifierState = true;
-    setRelay(RELAY_HUMIDIFIER, true);
-  } else if (humidity >= humidityMaxThreshold) {
+  // 1. Ultrasonic Humidity Control (Only if DHT sensor exists)
+  if (dhtSensorExists) {
+    if (humidity < humidityMinThreshold) {
+      humidifierState = true;
+      setRelay(RELAY_HUMIDIFIER, true);
+    } else if (humidity >= humidityMaxThreshold) {
+      humidifierState = false;
+      setRelay(RELAY_HUMIDIFIER, false);
+    }
+  } else {
     humidifierState = false;
     setRelay(RELAY_HUMIDIFIER, false);
   }
 
   // 2. Gas / Ripening Control (Ethylene Venting)
-  if (gasLevel > gasThresholdPpm) {
+  if (gasSensorExists && gasLevel > gasThresholdPpm) {
     inletFanState = true;
     outletFanState = true;
     setRelay(RELAY_INLET_FAN, true);
     setRelay(RELAY_OUTLET_FAN, true);
     currentState = STATE_ALERT;
   } else {
-    // Standard temperature cooling / circulation
-    if (temperature > tempMaxThreshold) {
+    // Standard temperature cooling / circulation (Only if DHT sensor exists)
+    if (dhtSensorExists && temperature > tempMaxThreshold) {
       inletFanState = true;
       outletFanState = true;
       setRelay(RELAY_INLET_FAN, true);
@@ -612,13 +647,32 @@ void uploadTelemetry() {
   // Create JSON payload matching Smart FreshGuard Web App specification
   FreshGuardJsonDoc doc;
   doc["device_id"]   = deviceId;
+  doc["account_id"]  = accountId;
   doc["door_status"] = isDoorOpen ? "OPEN" : "CLOSED";
   doc["state"]       = (currentState == STATE_DOOR_OPEN) ? "DOOR_OPEN" :
                        (currentState == STATE_WAIT_5_SECONDS) ? "WAIT_5_SECONDS" :
                        (currentState == STATE_ALERT) ? "ALERT" : "NORMAL";
-  doc["temperature"] = serialized(String(temperature, 1));
-  doc["humidity"]    = (int)humidity;
-  doc["gas_level"]   = gasLevel;
+
+  // Hardware existence flags
+  doc["dht_exists"]  = dhtSensorExists;
+  doc["gas_exists"]  = gasSensorExists;
+  doc["door_exists"] = doorSensorExists;
+
+  // Real sensor readings or null if sensor does not exist
+  if (dhtSensorExists) {
+    doc["temperature"] = serialized(String(temperature, 1));
+    doc["humidity"]    = (int)round(humidity);
+  } else {
+    doc["temperature"] = (char*)NULL;
+    doc["humidity"]    = (char*)NULL;
+  }
+
+  if (gasSensorExists) {
+    doc["gas_level"]   = gasLevel;
+  } else {
+    doc["gas_level"]   = (char*)NULL;
+  }
+
   doc["system_mode"] = systemMode;
   doc["inlet_fan"]   = inletFanState ? "ON" : "OFF";
   doc["outlet_fan"]  = outletFanState ? "ON" : "OFF";
@@ -641,14 +695,30 @@ void uploadTelemetry() {
 
 // ======================== LOCAL WEB SERVER API =======================
 void setupLocalHttpServer() {
-  // GET /status: Returns current telemetry and relay states
+  // GET /status: Returns current telemetry, account info, and hardware flags
   localServer.on("/status", HTTP_GET, []() {
     FreshGuardJsonDoc doc;
     doc["device_id"]   = deviceId;
+    doc["account_id"]  = accountId;
     doc["door_status"] = isDoorOpen ? "OPEN" : "CLOSED";
-    doc["temperature"] = temperature;
-    doc["humidity"]    = humidity;
-    doc["gas_level"]   = gasLevel;
+    doc["dht_exists"]  = dhtSensorExists;
+    doc["gas_exists"]  = gasSensorExists;
+    doc["door_exists"] = doorSensorExists;
+
+    if (dhtSensorExists) {
+      doc["temperature"] = temperature;
+      doc["humidity"]    = humidity;
+    } else {
+      doc["temperature"] = (char*)NULL;
+      doc["humidity"]    = (char*)NULL;
+    }
+
+    if (gasSensorExists) {
+      doc["gas_level"]   = gasLevel;
+    } else {
+      doc["gas_level"]   = (char*)NULL;
+    }
+
     doc["inlet_fan"]   = inletFanState;
     doc["outlet_fan"]  = outletFanState;
     doc["humidifier"]  = humidifierState;

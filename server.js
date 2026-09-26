@@ -26,8 +26,12 @@ const MIME_TYPES = {
 // Global in-memory state
 let globalState = {
   device_id: "SF-001",
+  account_id: "mshiva5626",
   door_status: "CLOSED",
   state: "NORMAL",
+  dht_exists: true,
+  gas_exists: true,
+  door_exists: true,
   temperature: 2.4,
   humidity: 92,
   gas_level: 215,
@@ -116,7 +120,7 @@ const server = http.createServer(async (req, res) => {
   const pathname = url.pathname;
 
   // API Routes
-  if (pathname === '/api/telemetry/latest' && req.method === 'GET') {
+  if ((pathname === '/api/telemetry' || pathname === '/api/telemetry/latest') && req.method === 'GET') {
     return sendJson(res, 200, globalState);
   }
 

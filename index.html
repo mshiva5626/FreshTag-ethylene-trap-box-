@@ -220,10 +220,24 @@
     .badge-ok { background: rgba(16,185,129,0.12); color: var(--accent); }
     .badge-warn { background: rgba(245,158,11,0.12); color: var(--amber); }
     .badge-danger { background: rgba(239,68,68,0.12); color: var(--red); }
+    .badge-missing {
+      background: rgba(240,244,248,0.08);
+      color: var(--text-muted);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
 
     .sensor-value {
       font-size: 32px; font-weight: 800; letter-spacing: -1.5px;
       line-height: 1;
+    }
+    .sensor-val-missing {
+      font-size: 18px !important;
+      font-weight: 700 !important;
+      letter-spacing: -0.3px !important;
+      color: #94a3b8 !important;
+      line-height: 1.3 !important;
+      display: inline-block;
+      margin-top: 4px;
     }
     .sensor-unit {
       font-size: 14px; font-weight: 500; color: var(--text-secondary);
@@ -502,7 +516,7 @@
         </div>
         <div>
           <span class="sensor-value" id="val-temp">2.4</span>
-          <span class="sensor-unit">°C</span>
+          <span class="sensor-unit" id="unit-temp">°C</span>
         </div>
         <div class="sensor-label">Temperature</div>
         <div class="sensor-bar-bg"><div class="sensor-bar bar-blue" id="bar-temp" style="width:35%"></div></div>
@@ -518,7 +532,7 @@
         </div>
         <div>
           <span class="sensor-value" id="val-humidity">92</span>
-          <span class="sensor-unit">%</span>
+          <span class="sensor-unit" id="unit-hum">%</span>
         </div>
         <div class="sensor-label">Humidity</div>
         <div class="sensor-bar-bg"><div class="sensor-bar bar-cyan" id="bar-hum" style="width:84%"></div></div>
@@ -534,7 +548,7 @@
         </div>
         <div>
           <span class="sensor-value" id="val-ethylene">215</span>
-          <span class="sensor-unit">PPM</span>
+          <span class="sensor-unit" id="unit-gas">PPM</span>
         </div>
         <div class="sensor-label">Air Quality</div>
         <div class="sensor-bar-bg"><div class="sensor-bar bar-green" id="bar-gas" style="width:43%"></div></div>
@@ -768,31 +782,53 @@
     <div id="setup-stage-1">
       <div class="card" style="text-align:center; padding:30px 20px;">
         <div style="font-size:48px; margin-bottom:12px;">📡</div>
-        <div style="font-size:16px; font-weight:700; margin-bottom:6px;">Ready to Connect</div>
-        <div style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">
-          Make sure your FreshGuard chamber is powered on and nearby.
+        <div style="font-size:16px; font-weight:700; margin-bottom:6px;">Ready to Connect via Bluetooth</div>
+        <div style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">
+          Make sure your FreshGuard chamber is powered on and in pairing mode.
         </div>
-        <button class="btn btn-primary" id="btn-ble-connect" onclick="startBleConnect()">
-          <span class="material-symbols-outlined" style="font-size:20px;">bluetooth</span>
-          Connect Chamber
-        </button>
+        <div style="display:inline-block; font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-glow); padding:4px 10px; border-radius:12px; margin-bottom:20px;">
+          BLE Name: FreshGuard-Vault-ESP32
+        </div>
+        <div>
+          <button class="btn btn-primary" id="btn-ble-connect" onclick="startBleConnect()">
+            <span class="material-symbols-outlined" style="font-size:20px;">bluetooth</span>
+            Connect Chamber
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Stage 2: WiFi Setup (hidden initially) -->
+    <!-- Stage 2: Account & WiFi Setup (hidden initially) -->
     <div id="setup-stage-2" style="display:none;">
       <div class="card" style="display:flex; flex-direction:column; gap:14px;">
-        <div style="font-size:15px; font-weight:700;">WiFi Network</div>
-        <input type="text" class="input-field" id="wifi-ssid" placeholder="WiFi Name (SSID)" value=""/>
-        <div style="position:relative;">
-          <input type="password" class="input-field" id="wifi-pass" placeholder="WiFi Password"/>
-          <button onclick="togglePass()" style="position:absolute; right:14px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--text-muted); cursor:pointer;">
-            <span class="material-symbols-outlined" style="font-size:20px;" id="pass-eye">visibility</span>
-          </button>
+        <div style="font-size:16px; font-weight:700;">Account & Network Link</div>
+        <div style="font-size:12px; color:var(--text-muted); line-height:1.4;">
+          Your chamber will be bound to your account and reconnect automatically after power outages.
         </div>
-        <button class="btn btn-primary" onclick="submitWifi()">
-          <span class="material-symbols-outlined" style="font-size:18px;">wifi</span>
-          Connect to WiFi
+
+        <div>
+          <label style="font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; display:block;">Your Account ID</label>
+          <input type="text" class="input-field" id="setup-account-id" placeholder="Account ID (e.g. mshiva5626)" value="mshiva5626"/>
+        </div>
+
+        <div>
+          <label style="font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; display:block;">WiFi Network (SSID)</label>
+          <input type="text" class="input-field" id="wifi-ssid" placeholder="WiFi Name (SSID)" value=""/>
+        </div>
+
+        <div>
+          <label style="font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; display:block;">WiFi Password</label>
+          <div style="position:relative;">
+            <input type="password" class="input-field" id="wifi-pass" placeholder="WiFi Password"/>
+            <button type="button" onclick="togglePass()" style="position:absolute; right:14px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--text-muted); cursor:pointer;">
+              <span class="material-symbols-outlined" style="font-size:20px;" id="pass-eye">visibility</span>
+            </button>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="btn-submit-wifi" onclick="submitWifi()">
+          <span class="material-symbols-outlined" style="font-size:18px;">cloud_sync</span>
+          Save & Connect Chamber
         </button>
       </div>
     </div>
@@ -801,39 +837,55 @@
     <div id="setup-stage-3" style="display:none;">
       <div class="card glow" style="text-align:center; padding:30px 20px;">
         <div style="font-size:48px; margin-bottom:12px;">✅</div>
-        <div style="font-size:18px; font-weight:800; color:var(--accent); margin-bottom:6px;">Connected!</div>
-        <div style="font-size:13px; color:var(--text-secondary); margin-bottom:6px;">
-          Your FreshGuard chamber is online and sending data.
+        <div style="font-size:18px; font-weight:800; color:var(--accent); margin-bottom:6px;">Chamber Connected!</div>
+        <div style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">
+          Your FreshGuard chamber is linked to your account and reporting live telemetry.
         </div>
-        <div style="font-size:12px; color:var(--text-muted);">
-          Network: <strong id="done-ssid">—</strong>
+        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; padding:12px; text-align:left; font-size:12px; display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+          <div><span style="color:var(--text-muted);">Bound Account:</span> <strong id="done-account" style="color:var(--accent);">mshiva5626</strong></div>
+          <div><span style="color:var(--text-muted);">WiFi Network:</span> <strong id="done-ssid">—</strong></div>
+          <div><span style="color:var(--text-muted);">Auto-Reconnect:</span> <strong style="color:var(--accent);">Active (NVS Flash Memory)</strong></div>
         </div>
-        <button class="btn btn-secondary" onclick="navigateTo('home')" style="margin-top:18px;">
+        <button class="btn btn-secondary" onclick="navigateTo('home')">
           <span class="material-symbols-outlined" style="font-size:18px;">home</span>
           Go to Dashboard
         </button>
       </div>
     </div>
 
-    <!-- Device Info -->
+    <!-- Device Info & Hardware Diagnostics -->
     <div class="card" style="margin-top:8px;">
-      <div style="font-size:13px; font-weight:700; margin-bottom:12px;">Device Information</div>
+      <div style="font-size:13px; font-weight:700; margin-bottom:12px;">Device & Hardware Diagnostics</div>
       <div style="display:flex; flex-direction:column; gap:8px;">
         <div style="display:flex; justify-content:space-between; font-size:13px;">
           <span style="color:var(--text-muted);">Device ID</span>
           <span style="font-weight:600;">SF-001</span>
         </div>
         <div style="display:flex; justify-content:space-between; font-size:13px;">
-          <span style="color:var(--text-muted);">Firmware</span>
-          <span style="font-weight:600;">v4.2</span>
+          <span style="color:var(--text-muted);">Linked Account</span>
+          <span style="font-weight:600; color:var(--accent);" id="device-account-val">mshiva5626</span>
         </div>
         <div style="display:flex; justify-content:space-between; font-size:13px;">
-          <span style="color:var(--text-muted);">Connection</span>
-          <span style="font-weight:600; color:var(--accent);" id="device-conn-status">Online</span>
+          <span style="color:var(--text-muted);">Firmware</span>
+          <span style="font-weight:600;">v4.3 (BLE Provisioned)</span>
         </div>
         <div style="display:flex; justify-content:space-between; font-size:13px;">
           <span style="color:var(--text-muted);">Auto-Reconnect</span>
           <span style="font-weight:600; color:var(--accent);">Enabled</span>
+        </div>
+        <div style="border-top:1px solid var(--border); margin:6px 0;"></div>
+        <div style="font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">Sensor Hardware Status</div>
+        <div style="display:flex; justify-content:space-between; font-size:12px;">
+          <span style="color:var(--text-muted);">Temperature & Humidity (DHT11)</span>
+          <span id="diag-dht" style="font-weight:600; color:var(--accent);">Active</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:12px;">
+          <span style="color:var(--text-muted);">Ethylene Gas Sensor (MQ)</span>
+          <span id="diag-gas" style="font-weight:600; color:var(--accent);">Active</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:12px;">
+          <span style="color:var(--text-muted);">IR Safety Door Beam</span>
+          <span id="diag-door" style="font-weight:600; color:var(--accent);">Active</span>
         </div>
       </div>
     </div>
@@ -953,48 +1005,92 @@
       showToast(mode === 'auto' ? 'Auto mode activated' : 'Manual mode activated');
     }
 
+    // ── Setup / Pairing Globals ──
+    let bleDevice = null;
+    let bleServer = null;
+    let bleConfigChar = null;
+    let bleStatusChar = null;
+    let boundAccount = 'mshiva5626';
+
+    const BLE_SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+    const BLE_CONFIG_UUID  = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+    const BLE_STATUS_UUID  = '1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e';
+
     // ── Setup / Pairing ──
-    function startBleConnect() {
+    async function startBleConnect() {
       const btn = document.getElementById('btn-ble-connect');
       if (btn) {
         btn.disabled = true;
         btn.innerHTML = `
           <span class="material-symbols-outlined" style="font-size:20px; animation: spin 1s linear infinite;">sync</span>
-          Connecting...
+          Pairing over Bluetooth...
         `;
       }
 
-      // Try real Web Bluetooth
-      const doConnect = async () => {
-        if (navigator.bluetooth && window.isSecureContext) {
-          try {
-            const device = await navigator.bluetooth.requestDevice({
-              filters: [{ namePrefix: 'FreshGuard' }],
-              optionalServices: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b']
-            });
-            await device.gatt.connect();
-            bleDeviceConnected = true;
-          } catch(e) {
-            console.log('BLE cancelled or unavailable, using simulation');
-            bleDeviceConnected = true;
-          }
-        } else {
+      if (navigator.bluetooth && window.isSecureContext) {
+        try {
+          showToast('Scanning for FreshGuard Bluetooth...');
+          bleDevice = await navigator.bluetooth.requestDevice({
+            filters: [{ namePrefix: 'FreshGuard' }],
+            optionalServices: [BLE_SERVICE_UUID]
+          });
+
+          showToast('Connecting to ' + (bleDevice.name || 'FreshGuard-Vault-ESP32') + '...');
+          bleServer = await bleDevice.gatt.connect();
+          const service = await bleServer.getPrimaryService(BLE_SERVICE_UUID);
+
+          // Get characteristics
+          bleConfigChar = await service.getCharacteristic(BLE_CONFIG_UUID);
+          bleStatusChar = await service.getCharacteristic(BLE_STATUS_UUID);
+
+          // Listen for status notifications from ESP32
+          await bleStatusChar.startNotifications();
+          bleStatusChar.addEventListener('characteristicvaluechanged', (e) => {
+            const val = new TextDecoder().decode(e.target.value);
+            console.log('[ESP32 BLE Notification]', val);
+            handleBleStatusNotification(val);
+          });
+
+          bleDeviceConnected = true;
+          showToast('Bluetooth connected! Enter WiFi & Account details.');
+        } catch (err) {
+          console.warn('Bluetooth pairing note:', err);
+          showToast(err.name === 'NotFoundError' ? 'Pairing window closed. Proceeding to entry.' : 'Bluetooth ready (Direct mode).');
           bleDeviceConnected = true;
         }
+      } else {
+        showToast('Web Bluetooth not available in this browser. Using Direct WiFi mode.');
+        bleDeviceConnected = true;
+      }
 
-        setTimeout(() => {
-          // Update step indicators
-          const s1num = document.querySelector('#setup-step-1 .step-number');
-          const s2num = document.querySelector('#setup-step-2 .step-number');
-          if (s1num) { s1num.classList.remove('active'); s1num.classList.add('done'); s1num.textContent = '✓'; }
-          if (s2num) s2num.classList.add('active');
+      setTimeout(() => {
+        // Update step indicators
+        const s1num = document.querySelector('#setup-step-1 .step-number');
+        const s2num = document.querySelector('#setup-step-2 .step-number');
+        if (s1num) { s1num.classList.remove('active'); s1num.classList.add('done'); s1num.textContent = '✓'; }
+        if (s2num) s2num.classList.add('active');
 
-          document.getElementById('setup-stage-1').style.display = 'none';
-          document.getElementById('setup-stage-2').style.display = 'block';
-          showToast('Bluetooth connected! Enter WiFi details.');
-        }, 800);
-      };
-      doConnect();
+        document.getElementById('setup-stage-1').style.display = 'none';
+        document.getElementById('setup-stage-2').style.display = 'block';
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:20px;">bluetooth</span> Connect Chamber`;
+        }
+      }, 700);
+    }
+
+    function handleBleStatusNotification(msg) {
+      if (msg.includes('CONNECTED')) {
+        showToast('Chamber verified connected by ESP32!');
+        const s2num = document.querySelector('#setup-step-2 .step-number');
+        const s3num = document.querySelector('#setup-step-3 .step-number');
+        if (s2num) { s2num.classList.remove('active'); s2num.classList.add('done'); s2num.textContent = '✓'; }
+        if (s3num) { s3num.classList.add('done'); s3num.textContent = '✓'; }
+        document.getElementById('setup-stage-2').style.display = 'none';
+        document.getElementById('setup-stage-3').style.display = 'block';
+      } else if (msg.includes('WIFI_FAILED')) {
+        showToast('ESP32: WiFi connection timed out. Check password.', true);
+      }
     }
 
     function togglePass() {
@@ -1007,132 +1103,304 @@
       }
     }
 
-    function submitWifi() {
-      const ssid = document.getElementById('wifi-ssid').value || 'Home_WiFi';
+    async function submitWifi() {
+      const ssid = (document.getElementById('wifi-ssid').value || '').trim() || 'Home_WiFi';
       const pass = document.getElementById('wifi-pass').value;
+      const account = (document.getElementById('setup-account-id').value || '').trim() || 'mshiva5626';
+      boundAccount = account;
 
-      // Send to backend
-      fetch('/api/pair', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ssid, password: pass, device_id: 'SF-001', auto_reconnect: true })
-      }).catch(() => {});
+      const submitBtn = document.getElementById('btn-submit-wifi');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px; animation: spin 1s linear infinite;">sync</span> Linking to Account...`;
+      }
+
+      const payload = {
+        ssid: ssid,
+        password: pass,
+        account_id: account,
+        device_id: 'SF-001',
+        server: window.location.origin + '/api/telemetry'
+      };
+
+      // 1. Send via Bluetooth GATT if connected
+      if (bleConfigChar) {
+        try {
+          const encoder = new TextEncoder();
+          await bleConfigChar.writeValue(encoder.encode(JSON.stringify(payload)));
+          showToast('Credentials sent to ESP32 over Bluetooth!');
+        } catch (bleErr) {
+          console.warn('BLE GATT write error:', bleErr);
+        }
+      }
+
+      // 2. Also send to local backend endpoint
+      try {
+        await fetch('/api/pair', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (e) {}
 
       // Update step indicators
-      const s2num = document.querySelector('#setup-step-2 .step-number');
-      const s3num = document.querySelector('#setup-step-3 .step-number');
-      if (s2num) { s2num.classList.remove('active'); s2num.classList.add('done'); s2num.textContent = '✓'; }
-      if (s3num) { s3num.classList.add('done'); s3num.textContent = '✓'; }
+      setTimeout(() => {
+        const s2num = document.querySelector('#setup-step-2 .step-number');
+        const s3num = document.querySelector('#setup-step-3 .step-number');
+        if (s2num) { s2num.classList.remove('active'); s2num.classList.add('done'); s2num.textContent = '✓'; }
+        if (s3num) { s3num.classList.add('done'); s3num.textContent = '✓'; }
 
-      document.getElementById('setup-stage-2').style.display = 'none';
-      document.getElementById('setup-stage-3').style.display = 'block';
-      document.getElementById('done-ssid').textContent = ssid;
-      showToast('Chamber connected to WiFi!');
+        document.getElementById('setup-stage-2').style.display = 'none';
+        document.getElementById('setup-stage-3').style.display = 'block';
+        document.getElementById('done-ssid').textContent = ssid;
+        const doneAcc = document.getElementById('done-account');
+        if (doneAcc) doneAcc.textContent = account;
+        const devAcc = document.getElementById('device-account-val');
+        if (devAcc) devAcc.textContent = account;
+
+        showToast(`Chamber linked to account ${account}!`);
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px;">cloud_sync</span> Save & Connect Chamber`;
+        }
+      }, 700);
     }
 
-    // ── Telemetry Polling ──
+    // ── Telemetry Polling & Sensor UI with "Doesn't Exist" Detection ──
     function updateSensorUI(data) {
-      // Temperature
+      // Hardware presence evaluation
+      const dhtExists = (data.dht_exists !== false) && (data.temperature !== null) && (data.temperature !== undefined);
+      const gasExists = (data.gas_exists !== false) && (data.gas_level !== null) && (data.gas_level !== undefined);
+      const doorExists = (data.door_exists !== false) && (data.door_status !== null) && (data.door_status !== 'DOES_NOT_EXIST');
+
+      // Update Hardware Diagnostics in Setup Tab
+      const diagDht = document.getElementById('diag-dht');
+      if (diagDht) {
+        diagDht.textContent = dhtExists ? 'Connected (DHT11)' : "Doesn't Exist";
+        diagDht.style.color = dhtExists ? 'var(--accent)' : 'var(--amber)';
+      }
+      const diagGas = document.getElementById('diag-gas');
+      if (diagGas) {
+        diagGas.textContent = gasExists ? 'Connected (MQ Analog)' : "Doesn't Exist";
+        diagGas.style.color = gasExists ? 'var(--accent)' : 'var(--amber)';
+      }
+      const diagDoor = document.getElementById('diag-door');
+      if (diagDoor) {
+        diagDoor.textContent = doorExists ? 'Connected (IR Optical)' : "Doesn't Exist";
+        diagDoor.style.color = doorExists ? 'var(--accent)' : 'var(--amber)';
+      }
+      if (data.account_id) {
+        const accEl = document.getElementById('device-account-val');
+        if (accEl) accEl.textContent = data.account_id;
+        boundAccount = data.account_id;
+      }
+
+      // 1. Temperature Sensor
       const tempEl = document.getElementById('val-temp');
+      const unitTemp = document.getElementById('unit-temp');
       const barTemp = document.getElementById('bar-temp');
       const badgeTemp = document.getElementById('badge-temp');
-      if (tempEl) tempEl.textContent = data.temperature.toFixed(1);
-      if (barTemp) barTemp.style.width = Math.min(100, Math.max(5, ((data.temperature + 5) / 15) * 100)) + '%';
-      if (badgeTemp) {
-        if (data.temperature >= 1 && data.temperature <= 4) {
-          badgeTemp.textContent = 'OPTIMAL'; badgeTemp.className = 'sensor-badge badge-ok';
-        } else if (data.temperature < 0 || data.temperature > 6) {
-          badgeTemp.textContent = 'ALERT'; badgeTemp.className = 'sensor-badge badge-danger';
-        } else {
-          badgeTemp.textContent = 'WARNING'; badgeTemp.className = 'sensor-badge badge-warn';
+
+      if (dhtExists) {
+        const tVal = Number(data.temperature);
+        if (tempEl) {
+          tempEl.textContent = isNaN(tVal) ? data.temperature : tVal.toFixed(1);
+          tempEl.className = 'sensor-value';
+        }
+        if (unitTemp) unitTemp.style.display = 'inline';
+        if (barTemp) barTemp.style.width = Math.min(100, Math.max(5, ((tVal + 5) / 15) * 100)) + '%';
+        if (badgeTemp) {
+          if (tVal >= 1 && tVal <= 4) {
+            badgeTemp.textContent = 'OPTIMAL'; badgeTemp.className = 'sensor-badge badge-ok';
+          } else if (tVal < 0 || tVal > 6) {
+            badgeTemp.textContent = 'ALERT'; badgeTemp.className = 'sensor-badge badge-danger';
+          } else {
+            badgeTemp.textContent = 'WARNING'; badgeTemp.className = 'sensor-badge badge-warn';
+          }
+        }
+      } else {
+        if (tempEl) {
+          tempEl.textContent = "Doesn't Exist";
+          tempEl.className = 'sensor-value sensor-val-missing';
+        }
+        if (unitTemp) unitTemp.style.display = 'none';
+        if (barTemp) barTemp.style.width = '0%';
+        if (badgeTemp) {
+          badgeTemp.textContent = "DOESN'T EXIST";
+          badgeTemp.className = 'sensor-badge badge-missing';
         }
       }
 
-      // Humidity
+      // 2. Humidity Sensor
       const humEl = document.getElementById('val-humidity');
+      const unitHum = document.getElementById('unit-hum');
       const barHum = document.getElementById('bar-hum');
       const badgeHum = document.getElementById('badge-hum');
-      if (humEl) humEl.textContent = Math.round(data.humidity);
-      if (barHum) barHum.style.width = Math.min(100, Math.max(5, data.humidity)) + '%';
-      if (badgeHum) {
-        if (data.humidity >= 85 && data.humidity <= 95) {
-          badgeHum.textContent = 'OPTIMAL'; badgeHum.className = 'sensor-badge badge-ok';
-        } else {
-          badgeHum.textContent = data.humidity < 85 ? 'LOW' : 'HIGH';
-          badgeHum.className = 'sensor-badge badge-warn';
+
+      if (dhtExists && data.humidity !== null && data.humidity !== undefined) {
+        const hVal = Number(data.humidity);
+        if (humEl) {
+          humEl.textContent = Math.round(hVal);
+          humEl.className = 'sensor-value';
+        }
+        if (unitHum) unitHum.style.display = 'inline';
+        if (barHum) barHum.style.width = Math.min(100, Math.max(5, hVal)) + '%';
+        if (badgeHum) {
+          if (hVal >= 85 && hVal <= 95) {
+            badgeHum.textContent = 'OPTIMAL'; badgeHum.className = 'sensor-badge badge-ok';
+          } else {
+            badgeHum.textContent = hVal < 85 ? 'LOW' : 'HIGH';
+            badgeHum.className = 'sensor-badge badge-warn';
+          }
+        }
+      } else {
+        if (humEl) {
+          humEl.textContent = "Doesn't Exist";
+          humEl.className = 'sensor-value sensor-val-missing';
+        }
+        if (unitHum) unitHum.style.display = 'none';
+        if (barHum) barHum.style.width = '0%';
+        if (badgeHum) {
+          badgeHum.textContent = "DOESN'T EXIST";
+          badgeHum.className = 'sensor-badge badge-missing';
         }
       }
 
-      // Gas / Ethylene
+      // 3. Ethylene / Gas Sensor
       const gasEl = document.getElementById('val-ethylene');
+      const unitGas = document.getElementById('unit-gas');
       const barGas = document.getElementById('bar-gas');
       const badgeGas = document.getElementById('badge-gas');
-      if (gasEl) gasEl.textContent = Math.round(data.gas_level);
-      if (barGas) barGas.style.width = Math.min(100, Math.max(5, (data.gas_level / 500) * 100)) + '%';
-      if (badgeGas) {
-        if (data.gas_level < 250) {
-          badgeGas.textContent = 'CLEAN'; badgeGas.className = 'sensor-badge badge-ok';
-        } else if (data.gas_level < 350) {
-          badgeGas.textContent = 'ELEVATED'; badgeGas.className = 'sensor-badge badge-warn';
-        } else {
-          badgeGas.textContent = 'HIGH'; badgeGas.className = 'sensor-badge badge-danger';
+
+      if (gasExists && data.gas_level !== null && data.gas_level !== undefined) {
+        const gVal = Number(data.gas_level);
+        if (gasEl) {
+          gasEl.textContent = Math.round(gVal);
+          gasEl.className = 'sensor-value';
+        }
+        if (unitGas) unitGas.style.display = 'inline';
+        if (barGas) barGas.style.width = Math.min(100, Math.max(5, (gVal / 500) * 100)) + '%';
+        if (badgeGas) {
+          if (gVal < 250) {
+            badgeGas.textContent = 'CLEAN'; badgeGas.className = 'sensor-badge badge-ok';
+          } else if (gVal < 350) {
+            badgeGas.textContent = 'ELEVATED'; badgeGas.className = 'sensor-badge badge-warn';
+          } else {
+            badgeGas.textContent = 'HIGH'; badgeGas.className = 'sensor-badge badge-danger';
+          }
+        }
+      } else {
+        if (gasEl) {
+          gasEl.textContent = "Doesn't Exist";
+          gasEl.className = 'sensor-value sensor-val-missing';
+        }
+        if (unitGas) unitGas.style.display = 'none';
+        if (barGas) barGas.style.width = '0%';
+        if (badgeGas) {
+          badgeGas.textContent = "DOESN'T EXIST";
+          badgeGas.className = 'sensor-badge badge-missing';
         }
       }
 
-      // Door
+      // 4. Chamber Door Sensor
       const doorEl = document.getElementById('val-door');
       const iconDoor = document.getElementById('icon-door');
       const badgeDoor = document.getElementById('badge-door');
       const cardDoor = document.getElementById('card-door');
-      const doorOpen = data.door_status === 'OPEN';
-      isDoorOpen = doorOpen;
 
-      if (doorEl) doorEl.textContent = doorOpen ? 'Open' : 'Secured';
-      if (iconDoor) iconDoor.textContent = doorOpen ? 'lock_open' : 'lock';
-      if (badgeDoor) {
-        badgeDoor.textContent = doorOpen ? 'OPEN' : 'SEALED';
-        badgeDoor.className = 'sensor-badge ' + (doorOpen ? 'badge-danger' : 'badge-ok');
-      }
-      if (cardDoor) {
-        if (doorOpen) cardDoor.classList.add('door-open');
-        else cardDoor.classList.remove('door-open');
-      }
-      if (document.getElementById('bar-door')) {
-        document.getElementById('bar-door').style.width = doorOpen ? '30%' : '100%';
-        document.getElementById('bar-door').style.background = doorOpen ? 'var(--red)' : 'var(--amber)';
+      if (doorExists) {
+        const doorOpen = (data.door_status === 'OPEN');
+        isDoorOpen = doorOpen;
+        if (doorEl) {
+          doorEl.textContent = doorOpen ? 'Open' : 'Secured';
+          doorEl.className = 'sensor-value';
+        }
+        if (iconDoor) iconDoor.textContent = doorOpen ? 'lock_open' : 'lock';
+        if (badgeDoor) {
+          badgeDoor.textContent = doorOpen ? 'OPEN' : 'SEALED';
+          badgeDoor.className = 'sensor-badge ' + (doorOpen ? 'badge-danger' : 'badge-ok');
+        }
+        if (cardDoor) {
+          if (doorOpen) cardDoor.classList.add('door-open');
+          else cardDoor.classList.remove('door-open');
+        }
+        if (document.getElementById('bar-door')) {
+          document.getElementById('bar-door').style.width = doorOpen ? '30%' : '100%';
+          document.getElementById('bar-door').style.background = doorOpen ? 'var(--red)' : 'var(--amber)';
+        }
+      } else {
+        if (doorEl) {
+          doorEl.textContent = "Doesn't Exist";
+          doorEl.className = 'sensor-value sensor-val-missing';
+        }
+        if (badgeDoor) {
+          badgeDoor.textContent = "DOESN'T EXIST";
+          badgeDoor.className = 'sensor-badge badge-missing';
+        }
+        if (document.getElementById('bar-door')) {
+          document.getElementById('bar-door').style.width = '0%';
+        }
       }
 
-      // Freshness Score (simple heuristic)
+      // Freshness Score (calculated from available sensors)
       let score = 100;
-      if (data.temperature < 1 || data.temperature > 4) score -= 15;
-      if (data.temperature < 0 || data.temperature > 6) score -= 15;
-      if (data.humidity < 85) score -= 10;
-      if (data.humidity > 95) score -= 5;
-      if (data.gas_level > 250) score -= 15;
-      if (data.gas_level > 350) score -= 20;
-      if (doorOpen) score -= 10;
-      score = Math.max(0, Math.min(100, score));
+      let availableSensorCount = 0;
+
+      if (dhtExists) {
+        availableSensorCount += 2;
+        const t = Number(data.temperature);
+        const h = Number(data.humidity);
+        if (t < 1 || t > 4) score -= 15;
+        if (t < 0 || t > 6) score -= 15;
+        if (h < 85) score -= 10;
+        if (h > 95) score -= 5;
+      }
+      if (gasExists) {
+        availableSensorCount += 1;
+        const g = Number(data.gas_level);
+        if (g > 250) score -= 15;
+        if (g > 350) score -= 20;
+      }
+      if (doorExists && isDoorOpen) {
+        score -= 10;
+      }
 
       const scoreEl = document.getElementById('freshnessScore');
       const heroSub = document.querySelector('.hero-subtitle');
-      if (scoreEl) scoreEl.textContent = score;
-      if (heroSub) {
-        if (score >= 85) heroSub.textContent = 'Your produce is in excellent condition';
-        else if (score >= 65) heroSub.textContent = 'Conditions are acceptable — some attention needed';
-        else heroSub.textContent = 'Conditions need attention — check your chamber';
-      }
-      if (scoreEl) {
-        if (score >= 85) scoreEl.style.color = 'var(--accent)';
-        else if (score >= 65) scoreEl.style.color = 'var(--amber)';
-        else scoreEl.style.color = 'var(--red)';
+
+      if (availableSensorCount === 0) {
+        if (scoreEl) {
+          scoreEl.textContent = '—';
+          scoreEl.style.color = 'var(--text-muted)';
+        }
+        if (heroSub) heroSub.textContent = 'Sensors not detected — connect hardware to view freshness';
+      } else {
+        score = Math.max(0, Math.min(100, score));
+        if (scoreEl) {
+          scoreEl.textContent = score;
+          if (score >= 85) scoreEl.style.color = 'var(--accent)';
+          else if (score >= 65) scoreEl.style.color = 'var(--amber)';
+          else scoreEl.style.color = 'var(--red)';
+        }
+        if (heroSub) {
+          if (availableSensorCount < 3) {
+            heroSub.textContent = 'Estimated freshness (some sensors not installed)';
+          } else if (score >= 85) {
+            heroSub.textContent = 'Your produce is in excellent condition';
+          } else if (score >= 65) {
+            heroSub.textContent = 'Conditions acceptable — some attention recommended';
+          } else {
+            heroSub.textContent = 'Conditions need attention — check chamber';
+          }
+        }
       }
 
       // Controls sync
-      controlState.inlet = data.inlet_fan === 'ON';
-      controlState.outlet = data.outlet_fan === 'ON';
-      controlState.humidifier = data.humidifier === 'ON';
-      controlState.white = data.white_led === 'ON';
-      controlState.blue = data.blue_led === 'ON';
+      if (data.inlet_fan !== undefined) controlState.inlet = (data.inlet_fan === 'ON' || data.inlet_fan === true);
+      if (data.outlet_fan !== undefined) controlState.outlet = (data.outlet_fan === 'ON' || data.outlet_fan === true);
+      if (data.humidifier !== undefined) controlState.humidifier = (data.humidifier === 'ON' || data.humidifier === true);
+      if (data.white_led !== undefined) controlState.white = (data.white_led === 'ON' || data.white_led === true);
+      if (data.blue_led !== undefined) controlState.blue = (data.blue_led === 'ON' || data.blue_led === true);
 
       ['inlet', 'outlet', 'humidifier', 'white', 'blue'].forEach(key => {
         const btn = document.getElementById('toggle-' + key);
@@ -1142,18 +1410,21 @@
         }
       });
 
-      // Connection status
+      // Connection status indicator
       const dot = document.getElementById('statusDot');
       const statusText = document.getElementById('statusText');
       if (dot) dot.classList.remove('offline');
-      if (statusText) statusText.textContent = 'Connected';
+      if (statusText) statusText.textContent = data.account_id ? `Online (${data.account_id})` : 'Connected';
 
-      // Update trend
-      updateTrend(data.temperature);
+      // Update trend chart if temperature exists
+      if (dhtExists) {
+        updateTrend(Number(data.temperature));
+      }
     }
 
     // Trend Chart
     function updateTrend(temp) {
+      if (isNaN(temp)) return;
       trendData.push(temp);
       if (trendData.length > 30) trendData.shift();
 
@@ -1188,16 +1459,22 @@
     // Poll backend
     async function pollTelemetry() {
       try {
-        const res = await fetch('/api/telemetry');
+        let res = await fetch('/api/telemetry');
+        if (!res.ok) res = await fetch('/api/telemetry/latest');
         if (res.ok) {
           const data = await res.json();
           if (data) updateSensorUI(data);
-        } else {
-          throw new Error('Server error');
+          return;
         }
+        throw new Error('Endpoint unreachable');
       } catch (e) {
-        // Simulated fallback
+        // Realistic simulated fallback when offline
         const simData = {
+          account_id: boundAccount,
+          device_id: 'SF-001',
+          dht_exists: true,
+          gas_exists: true,
+          door_exists: true,
           temperature: 2.2 + Math.random() * 0.4,
           humidity: 91 + Math.random() * 2,
           gas_level: 210 + Math.random() * 10,

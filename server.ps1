@@ -13,8 +13,12 @@ $ConfigFile = Join-Path $RootPath "data\default_config.json"
 # In-memory State
 $GlobalState = [ordered]@{
     device_id   = "SF-001"
+    account_id  = "mshiva5626"
     door_status = "CLOSED"
     state       = "NORMAL"
+    dht_exists  = $true
+    gas_exists  = $true
+    door_exists = $true
     temperature = 2.4
     humidity    = 92
     gas_level   = 215
@@ -82,53 +86,62 @@ try {
 
 # Helper to send JSON response
 function Send-JsonResponse($response, $data, $statusCode = 200) {
-    $json = $data | ConvertTo-Json -Depth 6
-    $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
-    $response.StatusCode = $statusCode
-    $response.ContentType = "application/json; charset=utf-8"
-    $response.Headers.Add("Access-Control-Allow-Origin", "*")
-    $response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
-    $response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Authorization")
-    $response.ContentLength64 = $bytes.Length
-    $response.OutputStream.Write($bytes, 0, $bytes.Length)
-    $response.OutputStream.Close()
+    try {
+        $json = $data | ConvertTo-Json -Depth 6
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+        $response.StatusCode = $statusCode
+        $response.ContentType = "application/json; charset=utf-8"
+        $response.Headers.Add("Access-Control-Allow-Origin", "*")
+        $response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
+        $response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        $response.ContentLength64 = $bytes.Length
+        $response.OutputStream.Write($bytes, 0, $bytes.Length)
+    } catch {
+        Write-Warning "Send-JsonResponse warning: $_"
+    } finally {
+        try { $response.OutputStream.Close() } catch {}
+    }
 }
 
 # Helper to serve static files
 function Send-StaticFile($response, $filePath) {
-    if (-not (Test-Path $filePath)) {
-        $response.StatusCode = 404
-        $msg = [System.Text.Encoding]::UTF8.GetBytes("404 - File Not Found")
-        $response.OutputStream.Write($msg, 0, $msg.Length)
-        $response.OutputStream.Close()
-        return
-    }
+    try {
+        if (-not (Test-Path $filePath)) {
+            $response.StatusCode = 404
+            $msg = [System.Text.Encoding]::UTF8.GetBytes("404 - File Not Found")
+            $response.OutputStream.Write($msg, 0, $msg.Length)
+            return
+        }
 
-    $ext = [System.IO.Path]::GetExtension($filePath).ToLower()
-    $contentType = switch ($ext) {
-        ".html" { "text/html; charset=utf-8" }
-        ".css"  { "text/css; charset=utf-8" }
-        ".js"   { "application/javascript; charset=utf-8" }
-        ".json" { "application/json; charset=utf-8" }
-        ".svg"  { "image/svg+xml" }
-        ".png"  { "image/png" }
-        ".jpg"  { "image/jpeg" }
-        ".ico"  { "image/x-icon" }
-        ".ino"  { "text/plain; charset=utf-8" }
-        ".csv"  { "text/csv; charset=utf-8" }
-        default { "application/octet-stream" }
-    }
+        $ext = [System.IO.Path]::GetExtension($filePath).ToLower()
+        $contentType = switch ($ext) {
+            ".html" { "text/html; charset=utf-8" }
+            ".css"  { "text/css; charset=utf-8" }
+            ".js"   { "application/javascript; charset=utf-8" }
+            ".json" { "application/json; charset=utf-8" }
+            ".svg"  { "image/svg+xml" }
+            ".png"  { "image/png" }
+            ".jpg"  { "image/jpeg" }
+            ".ico"  { "image/x-icon" }
+            ".ino"  { "text/plain; charset=utf-8" }
+            ".csv"  { "text/csv; charset=utf-8" }
+            default { "application/octet-stream" }
+        }
 
-    $bytes = [System.IO.File]::ReadAllBytes($filePath)
-    $response.StatusCode = 200
-    $response.ContentType = $contentType
-    $response.Headers.Add("Access-Control-Allow-Origin", "*")
-    $response.Headers.Add("Cache-Control", "no-cache, no-store, must-revalidate")
-    $response.Headers.Add("Pragma", "no-cache")
-    $response.Headers.Add("Expires", "0")
-    $response.ContentLength64 = $bytes.Length
-    $response.OutputStream.Write($bytes, 0, $bytes.Length)
-    $response.OutputStream.Close()
+        $bytes = [System.IO.File]::ReadAllBytes($filePath)
+        $response.StatusCode = 200
+        $response.ContentType = $contentType
+        $response.Headers.Add("Access-Control-Allow-Origin", "*")
+        $response.Headers.Add("Cache-Control", "no-cache, no-store, must-revalidate")
+        $response.Headers.Add("Pragma", "no-cache")
+        $response.Headers.Add("Expires", "0")
+        $response.ContentLength64 = $bytes.Length
+        $response.OutputStream.Write($bytes, 0, $bytes.Length)
+    } catch {
+        Write-Warning "Send-StaticFile warning: $_"
+    } finally {
+        try { $response.OutputStream.Close() } catch {}
+    }
 }
 
 # Main Request Loop
@@ -151,7 +164,7 @@ while ($Listener.IsListening) {
         }
 
         # ----------------- REST API ROUTING -----------------
-        if ($urlPath -eq "/api/telemetry/latest" -and $method -eq "GET") {
+        if (($urlPath -eq "/api/telemetry" -or $urlPath -eq "/api/telemetry/latest") -and $method -eq "GET") {
             Send-JsonResponse $response $GlobalState
             continue
         }
@@ -163,11 +176,15 @@ while ($Listener.IsListening) {
 
             # Update Global State
             if ($data.device_id)   { $GlobalState.device_id   = $data.device_id }
+            if ($data.account_id)  { $GlobalState.account_id  = $data.account_id }
             if ($data.door_status) { $GlobalState.door_status = $data.door_status }
             if ($data.state)       { $GlobalState.state       = $data.state }
-            if ($data.temperature -ne $null) { $GlobalState.temperature = [float]$data.temperature }
-            if ($data.humidity -ne $null)    { $GlobalState.humidity    = [int]$data.humidity }
-            if ($data.gas_level -ne $null)   { $GlobalState.gas_level   = [int]$data.gas_level }
+            if ($data.dht_exists -ne $null)  { $GlobalState.dht_exists  = [bool]$data.dht_exists }
+            if ($data.gas_exists -ne $null)  { $GlobalState.gas_exists  = [bool]$data.gas_exists }
+            if ($data.door_exists -ne $null) { $GlobalState.door_exists = [bool]$data.door_exists }
+            if ($data.temperature -ne $null) { $GlobalState.temperature = [float]$data.temperature } else { $GlobalState.temperature = $null }
+            if ($data.humidity -ne $null)    { $GlobalState.humidity    = [int]$data.humidity } else { $GlobalState.humidity = $null }
+            if ($data.gas_level -ne $null)   { $GlobalState.gas_level   = [int]$data.gas_level } else { $GlobalState.gas_level = $null }
             if ($data.system_mode) { $GlobalState.system_mode = $data.system_mode }
             if ($data.inlet_fan)   { $GlobalState.inlet_fan   = $data.inlet_fan }
             if ($data.outlet_fan)  { $GlobalState.outlet_fan  = $data.outlet_fan }
@@ -236,6 +253,26 @@ while ($Listener.IsListening) {
             continue
         }
 
+        if ($urlPath -eq "/api/pair" -and $method -eq "POST") {
+            $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+            $body = $reader.ReadToEnd()
+            $data = $body | ConvertFrom-Json
+
+            if ($data.account_id) { $GlobalState.account_id = $data.account_id }
+            if ($data.device_id)  { $GlobalState.device_id  = $data.device_id }
+            $GlobalState.wifi_connected = $true
+            
+            Send-JsonResponse $response @{
+                status         = "CONNECTED"
+                ip             = "192.168.1.142"
+                device_id      = $GlobalState.device_id
+                account_id     = $GlobalState.account_id
+                ssid           = $data.ssid
+                auto_reconnect = $true
+            }
+            continue
+        }
+
         if ($urlPath -eq "/api/config" -and $method -eq "GET") {
             if (Test-Path $ConfigFile) {
                 Send-StaticFile $response $ConfigFile
@@ -284,5 +321,10 @@ while ($Listener.IsListening) {
         Send-StaticFile $response $fullPath
     } catch {
         Write-Warning "Error processing request: $_"
+        try {
+            if ($response -and $response.OutputStream) {
+                Send-JsonResponse $response @{ error = "$_" } 400
+            }
+        } catch {}
     }
 }
