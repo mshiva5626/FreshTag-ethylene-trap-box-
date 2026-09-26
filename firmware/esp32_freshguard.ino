@@ -395,14 +395,8 @@ void setup() {
   Serial.println("  Smart FreshGuard - ESP32 Autonomous Vault Initializing ");
   Serial.println("=======================================================");
 
-  // ESP32 ADC: 12-bit resolution (0-4095) with cross-core attenuation support
-  #if defined(ADC_11db)
-    analogSetAttenuation(ADC_11db);
-  #elif defined(ADC_ATTEN_DB_12)
-    analogSetAttenuation(ADC_ATTEN_DB_12);
-  #else
-    analogSetAttenuation(ADC_ATTEN_DB_11);
-  #endif
+  // ESP32 ADC: Full 0 - 3.3V attenuation (11dB) for 12-bit analog gas sensor on GPIO 34
+  analogSetAttenuation(ADC_11db);
 
   // Initialize Sensors
   pinMode(IR_DOOR_PIN, INPUT_PULLUP);
