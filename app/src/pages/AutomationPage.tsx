@@ -149,16 +149,28 @@ export default function AutomationPage() {
       )}
 
       <form onSubmit={handleSaveAutomation} className="space-y-6">
-        {/* Section 1: Temperature & Climate Boundaries */}
+        {/* Section 1: Passive Thermal Monitoring & Safety Boundaries */}
         <div className="card p-6 space-y-4">
-          <div className="flex items-center gap-2.5 pb-2 border-b border-[var(--color-outline-variant)]/30">
-            <span className="material-symbols-outlined text-xl text-[var(--color-primary)]">thermostat</span>
-            <div>
-              <h3 className="text-sm font-bold text-[var(--color-on-surface)]">Temperature Control Loop</h3>
-              <p className="text-[11px] text-[var(--color-on-surface-variant)]">
-                Autonomous cooling and HEPA fresh air intake triggers when temperature exceeds maximum bound.
-              </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[var(--color-outline-variant)]/30">
+            <div className="flex items-center gap-2.5">
+              <span className="material-symbols-outlined text-xl text-[var(--color-primary)]">thermostat</span>
+              <div>
+                <h3 className="text-sm font-bold text-[var(--color-on-surface)]">Thermal Monitoring & Alert Boundaries</h3>
+                <p className="text-[11px] text-[var(--color-on-surface-variant)]">
+                  Passive sensing via DHT22. Active refrigeration is not integrated; bounds trigger safety alerts.
+                </p>
+              </div>
             </div>
+            <span className="text-[10px] font-bold text-[#7c2d00] bg-[#ffe0cb] px-2.5 py-1 rounded-full self-start sm:self-auto whitespace-nowrap">
+              Passive Sensing (No Cooler)
+            </span>
+          </div>
+
+          <div className="p-3 bg-[#fbf7f2] border border-[#fbd3b9] rounded-xl text-xs text-[#596155] flex items-center gap-2">
+            <span className="material-symbols-outlined text-base text-[#e66a26] shrink-0">info</span>
+            <span>
+              <strong>Hardware Note:</strong> Active cooling / refrigeration is not integrated in this prototype build. Temperature is monitored via the DHT22 sensor to notify you if ambient room conditions stray outside safe botanical bounds.
+            </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -175,7 +187,7 @@ export default function AutomationPage() {
                 required
               />
               <span className="text-[10px] text-[var(--color-on-surface-variant)] mt-1 block">
-                Lower bound before cold air circulation halts.
+                Triggers thermal warning if ambient chamber temperature drops below this level (chilling injury risk).
               </span>
             </div>
 
@@ -192,7 +204,7 @@ export default function AutomationPage() {
                 required
               />
               <span className="text-[10px] text-[var(--color-on-surface-variant)] mt-1 block">
-                Triggers Inlet (GPIO 16) & Scrubber (GPIO 17) fans for circulation.
+                Triggers thermal warning if ambient chamber temperature rises above this level (spoilage risk).
               </span>
             </div>
           </div>

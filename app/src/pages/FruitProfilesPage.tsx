@@ -143,7 +143,7 @@ export default function FruitProfilesPage() {
             Botanical Fruit Profiles & Presets
           </h1>
           <p className="text-xs text-[#596155] mt-0.5">
-            Calibrated climate & catalytic VOC thresholds optimized with real botanical photography
+            Calibrated catalytic VOC & humidity setpoints (passive thermal monitoring; active cooler is not fitted).
           </p>
         </div>
 
@@ -306,7 +306,7 @@ export default function FruitProfilesPage() {
                 {/* Storage Threshold Chips */}
                 <div className="grid grid-cols-3 gap-2 my-3 p-3 rounded-2xl bg-[#f7faf4] border border-[#e1e7dc] text-center text-xs">
                   <div>
-                    <span className="text-[10px] text-[#596155] block font-medium">Temperature</span>
+                    <span className="text-[10px] text-[#596155] block font-medium">Safe Temp</span>
                     <span className="font-extrabold text-[#1e241c]">
                       {formatTemp(preset.temp_min)} – {formatTemp(preset.temp_max)}
                     </span>

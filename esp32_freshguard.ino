@@ -1144,7 +1144,10 @@ void executeAutoClimateControl() {
     setRelay(RELAY_HUMIDIFIER, false);
   }
 
-  // 2. Gas / Ripening Control (Ethylene Venting)
+  // 2. Gas / Ripening Control (Ethylene Scrubber Extraction)
+  // NOTE: Active cooler/chiller is not integrated in this hardware build.
+  // Fans are dedicated to catalytic ethylene scrubbing when VOCs rise.
+  // Temperature is passively measured via DHT22 for telemetry and alerts.
   if (gasSensorExists && gasLevel > gasThresholdPpm) {
     inletFanState = true;
     outletFanState = true;
@@ -1152,20 +1155,12 @@ void executeAutoClimateControl() {
     setRelay(RELAY_OUTLET_FAN, true);
     currentState = STATE_ALERT;
   } else {
-    // Standard temperature cooling / circulation (Only if DHT sensor exists)
-    if (dhtSensorExists && temperature > tempMaxThreshold) {
-      inletFanState = true;
-      outletFanState = true;
-      setRelay(RELAY_INLET_FAN, true);
-      setRelay(RELAY_OUTLET_FAN, true);
-    } else {
-      inletFanState = false;
-      outletFanState = false;
-      setRelay(RELAY_INLET_FAN, false);
-      setRelay(RELAY_OUTLET_FAN, false);
-      if (currentState == STATE_ALERT) {
-        currentState = STATE_NORMAL;
-      }
+    inletFanState = false;
+    outletFanState = false;
+    setRelay(RELAY_INLET_FAN, false);
+    setRelay(RELAY_OUTLET_FAN, false);
+    if (currentState == STATE_ALERT) {
+      currentState = STATE_NORMAL;
     }
   }
 }

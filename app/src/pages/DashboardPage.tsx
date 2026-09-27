@@ -385,10 +385,10 @@ export default function DashboardPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-semibold text-[#596155] flex items-center gap-1">
                         <span className="material-symbols-outlined text-sm text-[#e66a26]">thermostat</span>
-                        Chamber Temp
+                        Chamber Temp (Passive)
                       </span>
                       <span className="text-[10px] text-[#778073]">
-                        Target: {formatTemp(device.thresholds.temp_min)}–{formatTemp(device.thresholds.temp_max)}
+                        Safe Range: {formatTemp(device.thresholds.temp_min)}–{formatTemp(device.thresholds.temp_max)}
                       </span>
                     </div>
 

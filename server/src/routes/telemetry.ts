@@ -290,6 +290,30 @@ async function evaluateAlertRules(deviceId: string, accountId: string, reading: 
         );
       }
     }
+
+    // 5. Rule: Temperature Excursion Alert (Passive thermal monitoring - no active cooler fitted)
+    if (reading.dht_exists && reading.temperature !== null && reading.temperature !== undefined) {
+      const minTemp = device.temp_min !== null && device.temp_min !== undefined ? parseFloat(device.temp_min) : null;
+      const maxTemp = device.temp_max !== null && device.temp_max !== undefined ? parseFloat(device.temp_max) : null;
+
+      if ((minTemp !== null && reading.temperature < minTemp) || (maxTemp !== null && reading.temperature > maxTemp)) {
+        const existing = await query(
+          `SELECT id FROM alerts WHERE device_id = $1 AND type = 'TEMPERATURE_EXCURSION' AND resolved = false`,
+          [deviceId]
+        );
+        if (existing.rows.length === 0) {
+          const isHigh = maxTemp !== null && reading.temperature > maxTemp;
+          await insertAndBroadcastAlert(
+            deviceId,
+            accountId,
+            'TEMPERATURE_EXCURSION',
+            'WARNING',
+            `Thermal Alert: Chamber Temperature ${isHigh ? 'High' : 'Low'}`,
+            `Ambient chamber temperature on ${device.nickname || deviceId} is ${reading.temperature}°C (safe range: ${minTemp ?? '--'}°C – ${maxTemp ?? '--'}°C). Active cooler is not fitted; check ambient storage location.`
+          );
+        }
+      }
+    }
   } catch (err: any) {
     console.error('[Evaluate Alerts Error]:', err.message);
   }

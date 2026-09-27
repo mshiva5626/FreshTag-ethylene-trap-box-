@@ -884,7 +884,7 @@ export default function NutritionScannerPage() {
             </p>
             <div className="grid grid-cols-3 gap-2 text-center pt-1">
               <div className="bg-white/80 p-1.5 rounded-xl border border-[#fbd3b9]/50">
-                <span className="text-[10px] text-[#7c2d00] block">Temp</span>
+                <span className="text-[10px] text-[#7c2d00] block">Ideal Temp*</span>
                 <span className="text-xs font-bold text-[#1e241c]">{selectedSpecimen.recommendedVaultTemp}°C</span>
               </div>
               <div className="bg-white/80 p-1.5 rounded-xl border border-[#fbd3b9]/50">
@@ -896,6 +896,9 @@ export default function NutritionScannerPage() {
                 <span className="text-xs font-bold text-[#1e241c]">&lt;{selectedSpecimen.recommendedGasThreshold}</span>
               </div>
             </div>
+            <p className="text-[10px] text-[#7c2d00]/80 italic pt-0.5">
+              *Advisory baseline. Active chilling is not fitted; chamber passively tracks room ambient temperature.
+            </p>
             <div className="text-[11px] text-[#7c2d00] pt-1 flex items-center justify-between">
               <span>Respiration Rate:</span>
               <span className="font-semibold">{selectedSpecimen.ethyleneOutput}</span>

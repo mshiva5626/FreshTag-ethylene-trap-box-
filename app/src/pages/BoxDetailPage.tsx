@@ -528,8 +528,8 @@ export default function BoxDetailPage() {
               </h3>
               <p className="text-xs text-[var(--color-on-surface-variant)] mt-0.5">
                 {isManualMode
-                  ? 'MANUAL mode: Automated PID loops paused. You can directly control each relay.'
-                  : 'AUTO mode: ESP32 autonomous climate controller manages fans & ultrasonic atomizer according to preset botanical thresholds.'}
+                  ? 'MANUAL mode: Automated control paused. You can directly control each relay (fans, humidifier, and inspection LED).'
+                  : 'AUTO mode: ESP32 controller manages catalytic ethylene scrubber fans & ultrasonic humidifier mist (temperature is passively monitored; active cooler is not fitted).'}
               </p>
             </div>
 
@@ -702,9 +702,16 @@ export default function BoxDetailPage() {
           <h3 className="text-base font-bold text-[var(--color-on-surface)] mb-1">
             Automated Chamber Thresholds
           </h3>
-          <p className="text-xs text-[var(--color-on-surface-variant)] mb-5">
-            When operating in AUTO mode, the ESP32 climate loops maintain chamber parameters within these boundaries.
+          <p className="text-xs text-[var(--color-on-surface-variant)] mb-4">
+            In AUTO mode, the chamber runs catalytic ethylene scrubbing and ultrasonic misting. Temperature is passively tracked for thermal alerts (active cooler is not fitted).
           </p>
+
+          <div className="p-3 mb-4 bg-[#fbf7f2] border border-[#fbd3b9] rounded-xl text-xs text-[#596155] flex items-center gap-2">
+            <span className="material-symbols-outlined text-base text-[#e66a26] shrink-0">info</span>
+            <span>
+              <strong>Passive Thermal Monitor:</strong> Active chilling is not integrated. Temperature thresholds configure ambient excursion warnings if room heat or chill affects chamber contents.
+            </span>
+          </div>
 
           <form onSubmit={handleSaveThresholds} className="space-y-4">
             <div>
@@ -723,7 +730,7 @@ export default function BoxDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-[var(--color-on-surface)] mb-1">
-                  Min Temperature (°C)
+                  Min Alert Temperature (°C)
                 </label>
                 <input
                   type="number"
@@ -737,7 +744,7 @@ export default function BoxDetailPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-[var(--color-on-surface)] mb-1">
-                  Max Temperature (°C)
+                  Max Alert Temperature (°C)
                 </label>
                 <input
                   type="number"
