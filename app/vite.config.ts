@@ -1,7 +1,7 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import { VitePWA } from 'vite-plugin-pwa'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   plugins: [
@@ -26,4 +26,28 @@ export default defineConfig({
     }),
   ],
   resolve: { alias: { '@': '/src' } },
-})
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('recharts')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('jsqr') || id.includes('qrcode')) {
+              return 'vendor-qr';
+            }
+            if (id.includes('zustand') || id.includes('socket.io-client')) {
+              return 'vendor-state';
+            }
+            return 'vendor-core';
+          }
+        },
+      },
+    },
+  },
+});

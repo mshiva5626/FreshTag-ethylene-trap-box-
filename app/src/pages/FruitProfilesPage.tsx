@@ -89,7 +89,7 @@ export default function FruitProfilesPage() {
     if (!newFruitName.trim()) return;
 
     setIsGenerating(true);
-    setGemmaStatus('Consulting Google Gemma 4 31B on OpenRouter...');
+    setGemmaStatus('Consulting Botanical Intelligence Engine...');
 
     try {
       const generated = await generateGemmaFruitPreset(newFruitName.trim());
@@ -107,10 +107,10 @@ export default function FruitProfilesPage() {
       }
 
       setNewFruitName('');
-      setToastMessage(`Google Gemma 4 31B synthesized new botanical preset for "${generated.name}"! ✨`);
+      setToastMessage(`Botanical AI synthesized new preservation preset for "${generated.name}"! ✨`);
     } catch (err: any) {
       console.error('Failed to generate preset:', err);
-      setToastMessage(`Gemma 4 31B generation failed: ${err.message}`);
+      setToastMessage(`Preset synthesis failed: ${err.message}`);
     } finally {
       setIsGenerating(false);
       setGemmaStatus('');
@@ -136,7 +136,7 @@ export default function FruitProfilesPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="bg-[#ffede0] text-[#e66a26] text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-[#fbd3b9]">
-              Google Gemma 4 31B Powered
+              Botanical AI Synthesizer
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#1e241c] flex items-center gap-2">
@@ -181,7 +181,7 @@ export default function FruitProfilesPage() {
         </div>
       )}
 
-      {/* ── Botanical Preset Management Form with Gemma 4 31B ── */}
+      {/* ── Botanical Preset Management Form with AI Synthesizer ── */}
       <div className="card-organic p-5 bg-gradient-to-br from-[#ffffff] to-[#fbf7f2] border border-[#fbd3b9] space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
@@ -190,11 +190,11 @@ export default function FruitProfilesPage() {
               AI Botanical Preset Synthesizer
             </h2>
             <p className="text-[11px] text-[#596155]">
-              Generate empirical vault storage setpoints for any unlisted fruit or crop using Google Gemma 4 31B
+              Generate empirical vault storage setpoints for any unlisted fruit or crop using Botanical AI
             </p>
           </div>
           <span className="text-[10px] font-bold text-[#7c2d00] bg-[#ffe0cb] px-2.5 py-1 rounded-full self-start sm:self-auto">
-            OpenRouter Gemma-4-31B
+            Neural Preset Core
           </span>
         </div>
 
@@ -215,7 +215,7 @@ export default function FruitProfilesPage() {
             disabled={isGenerating || !newFruitName.trim()}
             className="btn-terracotta px-5 py-2.5 rounded-full text-xs font-bold disabled:opacity-50 whitespace-nowrap shadow-sm cursor-pointer"
           >
-            {isGenerating ? 'Synthesizing...' : 'Generate Preset with Gemma'}
+            {isGenerating ? 'Synthesizing...' : 'Synthesize Botanical Preset'}
           </button>
         </form>
 
@@ -285,7 +285,7 @@ export default function FruitProfilesPage() {
                         </span>
                         {isCustom && (
                           <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#ffe0cb] text-[#7c2d00]">
-                            Gemma 4 31B
+                            AI Synthesized
                           </span>
                         )}
                       </div>

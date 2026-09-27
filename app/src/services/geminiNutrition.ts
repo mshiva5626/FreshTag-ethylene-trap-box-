@@ -317,7 +317,7 @@ ${userHint ? `Context hint from user: "${userHint}".` : ''}
     try {
       const gemmaResult = await generateGemmaNutritionAnalysis(userHint || 'Fresh Harvest Specimen');
       gemmaResult.imageUrl = previewUrl;
-      gemmaResult.aiAnalysisNotes = (gemmaResult.aiAnalysisNotes || '') + ' (Analyzed via Google Gemma 4 31B backup engine)';
+      gemmaResult.aiAnalysisNotes = (gemmaResult.aiAnalysisNotes || '') + ' (Analyzed via Secondary Botanical AI Engine)';
       return gemmaResult;
     } catch (gemmaErr) {
       console.error('[GeminiNutrition] Gemma fallback also failed:', gemmaErr);
@@ -355,7 +355,7 @@ Evaluate its taxonomy, post-harvest respiration kinetics, ethylene sensitivity, 
       return await generateGemmaNutritionAnalysis(produceName);
     } catch (gemmaErr) {
       console.error('[GeminiNutrition] Gemma fallback failed:', gemmaErr);
-      return fallbackToPreset(produceName, 'Gemini request timed out. Loaded calibrated horticultural preset.');
+      return fallbackToPreset(produceName, 'AI service timed out. Loaded calibrated horticultural preset.');
     }
   }
 }

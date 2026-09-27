@@ -289,7 +289,7 @@ export default function NutritionScannerPage() {
     setScanStepText('Acquiring optical morphology & pigment spectrum...');
 
     const stepTimer1 = setTimeout(() => {
-      setScanStepText('Analyzing with Google Gemini 3.5 & USDA Clinical FoodData...');
+      setScanStepText('Analyzing specimen morphology & USDA Clinical FoodData...');
     }, 700);
 
     const stepTimer2 = setTimeout(() => {
@@ -305,7 +305,7 @@ export default function NutritionScannerPage() {
       setSpecimens((prev) => [result, ...prev.filter((p) => p.name.toLowerCase() !== result.name.toLowerCase())]);
       setSelectedSpecimen(result);
       setPortionMultiplier(1);
-      setToastMessage(`Gemini AI identified ${result.name} (${result.freshnessScore}% Freshness Index)!`);
+      setToastMessage(`Botanical AI identified ${result.name} (${result.freshnessScore}% Freshness Index)!`);
     } catch (err: any) {
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
@@ -321,7 +321,7 @@ export default function NutritionScannerPage() {
     if (!searchQuery.trim()) return;
 
     setIsScanning(true);
-    setScanStepText(`Consulting Gemini AI for "${searchQuery.trim()}"...`);
+    setScanStepText(`Consulting Botanical AI for "${searchQuery.trim()}"...`);
 
     const stepTimer = setTimeout(() => {
       setScanStepText('Resolving USDA macronutrient profile & VOC thresholds...');
@@ -334,7 +334,7 @@ export default function NutritionScannerPage() {
       setSpecimens((prev) => [result, ...prev.filter((p) => p.name.toLowerCase() !== result.name.toLowerCase())]);
       setSelectedSpecimen(result);
       setPortionMultiplier(1);
-      setToastMessage(`Gemini analyzed ${result.name} successfully! 🌿`);
+      setToastMessage(`Botanical AI analyzed ${result.name} successfully! 🌿`);
     } catch (err: any) {
       clearTimeout(stepTimer);
       setToastMessage(`Could not complete search: ${err.message}`);
@@ -421,7 +421,7 @@ export default function NutritionScannerPage() {
                 Botanical Nutrition Scanner
               </h1>
               <span className="bg-[#ffede0] text-[#e66a26] text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider border border-[#fbd3b9]">
-                Gemini 3.5 AI
+                Botanical AI Engine
               </span>
             </div>
             <p className="text-xs text-[#596155]">
@@ -582,7 +582,7 @@ export default function NutritionScannerPage() {
                 ? 'AI VISION PROCESSING...'
                 : isCameraActive
                 ? 'LIVE CAMERA ACTIVE'
-                : 'GEMINI 3.5 VISION READY'}
+                : 'OPTICAL BIO-SCANNER READY'}
             </span>
           </div>
 
@@ -655,7 +655,7 @@ export default function NutritionScannerPage() {
               </span>
               {selectedSpecimen.source && (
                 <span className="bg-white/20 backdrop-blur-md text-white/90 text-[10px] font-semibold px-2 py-0.5 rounded-md">
-                  {selectedSpecimen.source === 'gemini-vision' ? '✨ Optical AI' : selectedSpecimen.source === 'gemini-text' ? '✨ Gemini AI' : 'Botanical Preset'}
+                  {selectedSpecimen.source === 'gemini-vision' ? '✨ Optical AI' : selectedSpecimen.source === 'gemini-text' ? '✨ Botanical AI' : 'Botanical Preset'}
                 </span>
               )}
             </div>
@@ -908,7 +908,7 @@ export default function NutritionScannerPage() {
           <div className="p-4 rounded-2xl bg-[#edf1e8] border border-[#dbe0d6] text-xs text-[#2b3129] space-y-1">
             <div className="flex items-center gap-1.5 font-bold text-[#1e241c]">
               <span className="material-symbols-outlined text-sm text-[#3b6b32]">psychology</span>
-              <span>Gemini Horticultural Intelligence</span>
+              <span>Botanical Horticultural Intelligence</span>
             </div>
             <p className="text-[#596155] leading-relaxed">
               {selectedSpecimen.aiAnalysisNotes}
