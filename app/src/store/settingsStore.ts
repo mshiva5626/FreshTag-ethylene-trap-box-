@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getBackendUrl } from '../utils/backendUrl';
 
 export interface NotificationPreferences {
   pushAlerts: boolean;
@@ -75,8 +76,8 @@ export const useSettingsStore = create<SettingsState>()(
       testNetworkLatency: async () => {
         const start = performance.now();
         try {
-          const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
-          const res = await fetch(`${backendUrl}/health`, { method: 'GET', cache: 'no-cache' });
+          const backendUrl = getBackendUrl();
+          const res = await fetch(`${backendUrl}/api/health`, { method: 'GET', cache: 'no-cache' });
           const latency = Math.round(performance.now() - start);
           if (res.ok) {
             set({ networkLatencyMs: latency, lastNetworkCheck: new Date().toISOString() });

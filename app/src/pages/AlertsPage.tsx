@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { initSocket } from '../utils/socket';
+import { getBackendUrl } from '../utils/backendUrl';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
+const BACKEND_URL = getBackendUrl();
 
 export interface AlertItem {
   id: number;
