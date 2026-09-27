@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.js';
 import devicesRoutes from './routes/devices.js';
 import telemetryRoutes from './routes/telemetry.js';
 import alertsRoutes from './routes/alerts.js';
+import nutritionRoutes from './routes/nutrition.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,8 +22,8 @@ export function createApp(): Express {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   }));
 
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: '15mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
   // Health check endpoint for hosting platforms
   app.get('/api/health', (req: Request, res: Response) => {
@@ -34,6 +35,7 @@ export function createApp(): Express {
   app.use('/api/devices', devicesRoutes);
   app.use('/api/telemetry', telemetryRoutes);
   app.use('/api/alerts', alertsRoutes);
+  app.use('/api/nutrition', nutritionRoutes);
 
   // Serve frontend static assets if available (monolithic deployment on Render)
   const clientDistPath = path.resolve(__dirname, '../../app/dist');
