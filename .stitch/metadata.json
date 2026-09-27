@@ -1,0 +1,73 @@
+{
+  "name": "projects/2193137530193911305",
+  "projectId": "2193137530193911305",
+  "title": "FreshGuard Smart Fruit Storage UI",
+  "visibility": "PRIVATE",
+  "deviceType": "MOBILE",
+  "designTheme": {
+    "colorMode": "LIGHT",
+    "font": "PLUS_JAKARTA_SANS",
+    "roundness": "ROUND_FULL",
+    "customColor": "#f5a623"
+  },
+  "screens": {
+    "splash": {
+      "id": "b544fcc890cc43b680ae56d30fbc0aef",
+      "sourceScreen": "projects/2193137530193911305/screens/b544fcc890cc43b680ae56d30fbc0aef",
+      "x": 2176,
+      "width": 390,
+      "height": 954,
+      "title": "Splash & Welcome"
+    },
+    "onboarding": {
+      "id": "26cdeeb6039049998793327967b225cd",
+      "sourceScreen": "projects/2193137530193911305/screens/26cdeeb6039049998793327967b225cd",
+      "x": 2630,
+      "width": 390,
+      "height": 889,
+      "title": "Onboarding Carousel"
+    },
+    "auth": {
+      "id": "9c8b4df3db1346a7b2c6b642cf862c84",
+      "sourceScreen": "projects/2193137530193911305/screens/9c8b4df3db1346a7b2c6b642cf862c84",
+      "x": 3084,
+      "width": 390,
+      "height": 772,
+      "title": "Register & Login"
+    },
+    "pairing": {
+      "id": "b900f4e16a144d7b986c05dc28c0367b",
+      "sourceScreen": "projects/2193137530193911305/screens/b900f4e16a144d7b986c05dc28c0367b",
+      "x": 3538,
+      "width": 390,
+      "height": 1312,
+      "title": "Pairing Wizard"
+    },
+    "dashboard": {
+      "id": "284d19d7784b4ff6adcafc4d9bb5a9bb",
+      "sourceScreen": "projects/2193137530193911305/screens/284d19d7784b4ff6adcafc4d9bb5a9bb",
+      "x": 3992,
+      "width": 390,
+      "height": 1375,
+      "title": "Dashboard & Home"
+    },
+    "automation": {
+      "id": "c27bb097c9ad4296baf15147cf66351d",
+      "sourceScreen": "projects/2193137530193911305/screens/c27bb097c9ad4296baf15147cf66351d",
+      "x": 5354,
+      "width": 390,
+      "height": 1494,
+      "title": "Automation Settings"
+    },
+    "logo": {
+      "id": "c6fdd9ceea004ab3864776c29c1bd6f6",
+      "sourceScreen": "projects/2193137530193911305/screens/c6fdd9ceea004ab3864776c29c1bd6f6",
+      "width": 200,
+      "height": 208,
+      "title": "FreshGuard Logo"
+    }
+  },
+  "metadata": {
+    "userRole": "OWNER"
+  }
+}

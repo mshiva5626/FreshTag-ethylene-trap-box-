@@ -1,19 +1,46 @@
-# 🌱 Smart FreshGuard — IoT Intelligent Fruit & Vegetable Storage Chamber
+# 🌱 FreshGuard — Autonomous Botanical Precision Storage Chamber
 
-**Smart FreshGuard** is a responsive, full-stack IoT web application and automated hardware controller for an **ESP32-based smart agricultural storage chamber**. It monitors temperature, humidity, gas/air-quality (as an indicator of ripening-related gases such as ethylene), and door access. It autonomously operates an **Inlet Fan, Outlet Fan, Ultrasonic Humidifier, Blue Antimicrobial LED, and White LED** through relay modules.
+[![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Vite%20%2B%20PWA-61dafb.svg)](https://reactjs.org/)
+[![Node.js](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express%20%2B%20Socket.io-339933.svg)](https://nodejs.org/)
+[![ESP32](https://img.shields.io/badge/Firmware-ESP32%20BLE%20%26%20WiFi-E7352C.svg)](https://www.espressif.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+**FreshGuard** is an end-to-end IoT platform and autonomous climate vault for precision botanical storage of fruits and vegetables. It monitors temperature, relative humidity, ethylene ($C_2H_4$) / VOC gas concentration, and door access states. 
+
+The system features:
+1. **ESP32 Firmware** with seamless **Web Bluetooth (BLE) Provisioning**, local REST API on port 80 with CORS, and optical safety interlocks.
+2. **PWA Frontend Application** with real-time Socket.io graphs, Web Bluetooth pairing modal, local Wi-Fi control fallbacks, and customizable crop profiles.
+3. **High-Performance Express Backend** with PostgreSQL storage (with pg-mem development mode), JWT/OTP authentication, Web Push alerts, and Socket.io live telemetry channels.
 
 ---
 
-## ⚡ Key Feature: IR Door Safety Interlock & 5-Second Recovery Workflow
+## 📐 Hardware Specifications & Pinout
 
-The system implements a strict state machine to prevent chamber disruption from ambient room air:
+All data pins operate at 3.3V logic on standard ESP32-WROOM-32 / NodeMCU-32S boards:
 
-```text
+| Component | ESP32 GPIO | Mode | Signal / Description |
+| :--- | :--- | :--- | :--- |
+| **DHT11 Sensor** | **GPIO 4** | Bidirectional | Digital Temperature & Relative Humidity Data |
+| **MQ Gas Sensor** | **GPIO 34** | Analog Input (ADC1_CH6) | 12-bit (0–4095) Ethylene / VOC gas level index |
+| **IR Safety Door Sensor** | **GPIO 14** | `INPUT_PULLUP` | Optical beam interlock (`HIGH` when door open) |
+| **TTP223 Capacitive Touch** | **GPIO 13** | `INPUT` | Bezel tap sensor for instant White LED toggle |
+| **Relay 1: Inlet Fan** | **GPIO 16** | `OUTPUT` (Active `LOW`) | HEPA fresh air intake ventilation |
+| **Relay 2: Outlet Fan** | **GPIO 17** | `OUTPUT` (Active `LOW`) | Catalytic ethylene purge / exhaust scrubber |
+| **Relay 3: Ultrasonic Humidifier** | **GPIO 5** | `OUTPUT` (Active `LOW`) | 1.7MHz ultrasonic atomizer for moisture maintenance |
+| **Relay 4: Inspection LED Bar** | **GPIO 19** | `OUTPUT` (Active `LOW`) | 5000K daylight inspection illumination |
+| **Relay 5: Antimicrobial Blue LED**| **GPIO 18** | `OUTPUT` (Active `LOW`) | 450nm pathogen suppression & BLE pairing blinker |
+
+---
+
+## ⚡ Safety Interlock & Chamber Stabilization Workflow
+
+To protect the calibrated microclimate from room temperature and humidity disruption:
+
+```
  ┌────────────────────────────────────────────────────────┐
  │                      DOOR CLOSED                       │
- │  - Normal climate control running                      │
- │  - Sensors sampled on interval                         │
- │  - Relays regulated per crop thresholds                │
+ │  - Autonomous climate control active                   │
+ │  - Relays regulated per active botanical thresholds    │
  └──────────────────────────┬─────────────────────────────┘
                             │ IR Sensor detects DOOR OPEN
                             ▼
@@ -21,117 +48,101 @@ The system implements a strict state machine to prevent chamber disruption from 
  │                   DOOR OPEN / PAUSED                   │
  │  - Inlet Fan: OFF                                      │
  │  - Outlet Fan: OFF                                     │
- │  - Humidifier: OFF                                     │
- │  - Climate control loop: PAUSED                        │
- │  - Door-open telemetry event uploaded to Web App       │
+ │  - Humidifier Mist: OFF                                │
+ │  - Immediate safety lockout on climate actuators       │
+ │  - Event published to Web App via Socket.io            │
  └──────────────────────────┬─────────────────────────────┘
                             │ IR Sensor detects DOOR CLOSED
                             ▼
  ┌────────────────────────────────────────────────────────┐
  │           5-SECOND STABILIZATION COUNTDOWN             │
- │  - Radial countdown timer ticks: 5.0s -> 0.0s          │
- │  - Fans & Humidifier remain OFF                        │
- │  - IF DOOR OPENS AGAIN: Timer ABORTS -> Returns PAUSED │
+ │  - 5000ms countdown timer starts                       │
+ │  - Actuators remain locked in safe state               │
+ │  - IF DOOR RE-OPENS: Timer cancels immediately        │
  └──────────────────────────┬─────────────────────────────┘
-                            │ 5 seconds complete without interruption
+                            │ 5 seconds complete uninterrupted
                             ▼
  ┌────────────────────────────────────────────────────────┐
- │                   SYSTEM RESTART                       │
- │  - Fans restart                                        │
- │  - DHT22 (Temp & Humidity) & MQ (Gas) sensors sampled  │
- │  - Automatic climate logic evaluates fresh readings    │
- │  - Live Web App displays: "✓ SYSTEM ACTIVE"            │
+ │                   NORMAL OPERATION                     │
+ │  - Sensors re-sampled for stabilized readings          │
+ │  - Climate control algorithm resumes                   │
  └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🛠️ Hardware Wiring & Pinout Guide
+## 📲 Bluetooth Low Energy (BLE) Provisioning
 
-| Component | ESP32 GPIO | GPIO # | Function / Relay Channel |
-| :--- | :--- | :--- | :--- |
-| **DHT22** | **GPIO4** | 4 | Digital Temp & Relative Humidity Data (with 10k pull-up) |
-| **MQ Gas Sensor** | **GPIO34** | 34 | Analog ethylene / VOC / air quality voltage — ADC1_CH6 (0–4095, 12-bit) |
-| **IR Door Sensor** | **GPIO14** | 14 | Obstacle detection beam across door frame |
-| **Touch Sensor (TTP223)** | **GPIO13** | 13 | Capacitive pulse for local White LED toggle |
-| **Relay 1: Inlet Fan** | **GPIO16** | 16 | Introduces fresh air into chamber |
-| **Relay 2: Outlet Fan** | **GPIO17** | 17 | Exhausts chamber air & purges ethylene |
-| **Relay 3: Humidifier** | **GPIO5** | 5 | Ultrasonic mist generation to prevent wilting |
-| **Relay 4: Blue LED** | **GPIO18** | 18 | 450nm experimental antimicrobial preservation light |
-| **Relay 5: White LED** | **GPIO19** | 19 | Chamber interior illumination |
+The chamber can be provisioned directly from modern desktop and mobile web browsers using the **Web Bluetooth API**:
+- **Device Names**: `FreshGuard` / `FreshGuard-Vault-ESP32`
+- **Service UUID**: `4fafc201-1fb5-459e-8fcc-c5c9c331914b`
+- **Wi-Fi Config Characteristic (Write)**: `beb5483e-36e1-4688-b7f5-ea07361b26a8`
+- **Status Characteristic (Read / Notify)**: `1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e`
 
 ---
 
-## 🍇 Modular Crop Storage Presets
+## 🚀 Getting Started
 
-Different produce categories require distinct microclimatic storage setpoints. Smart FreshGuard includes pre-calibrated agricultural profiles:
+### Prerequisites
+- Node.js 18+ and npm
+- Arduino IDE 2.x or Arduino CLI (with ESP32 board package installed)
 
-* **🍎 Apples (*Malus domestica*)**: 1.0 - 4.0°C | 90 - 95% RH | Gas limit: 230 ppm | Blue light: 30 min/day
-* **🍌 Bananas (*Musa acuminata*)**: 13.0 - 15.0°C | 85 - 90% RH | Gas limit: 210 ppm | Blue light: OFF (Chilling sensitive!)
-* **🍅 Tomatoes (*Solanum lycopersicum*)**: 10.0 - 13.0°C | 85 - 90% RH | Gas limit: 260 ppm | Blue light: 20 min/day
-* **🥬 Leafy Greens (Spinach & Lettuce)**: 0.5 - 3.5°C | 95 - 98% RH | Gas limit: 180 ppm | Near-saturation humidity
-* **🍓 Strawberries (*Fragaria × ananassa*)**: 0.0 - 2.0°C | 90 - 95% RH | Gas limit: 190 ppm | Blue light inhibits gray mold
-* **🥔 Potatoes (*Solanum tuberosum*)**: 7.0 - 10.0°C | 85 - 90% RH | Gas limit: 280 ppm | Keep in complete darkness!
-* **🍊 Oranges & Citrus**: 4.0 - 8.0°C | 85 - 90% RH | Gas limit: 240 ppm
-* **⚙️ Custom Protocol**: User-tunable sliders for temperature, humidity, and gas threshold limits.
-
----
-
-## 🚀 How to Run the Application
-
-### 1. Launch the Local Web & REST API Server
-Double-click `start_server.bat` or run in PowerShell:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\server.ps1
+### 1. Start the Backend Server
+```bash
+cd server
+npm install
+npm run dev
 ```
-The server will start on `http://localhost:8080`.
+The server starts on `http://localhost:8080`.
+By default, `USE_PG_MEM=true` is enabled for zero-config, in-memory PostgreSQL testing.
 
-### 2. Open the Dashboard in your Browser
-Navigate to:
-```
-http://localhost:8080
-```
-*(You can also double-click `index.html` to run in standalone browser mode with the built-in hardware simulator!)*
-
----
-
-## 🔬 Interactive Hardware Lab (Built-in Simulator)
-
-Click the **"Hardware Lab"** button in the top right navbar to test the chamber without physical hardware:
-1. **Open Door**: Simulates breaking the IR beam. Watch the 3D door swing open, fans and humidifier immediately stop, and the dashboard turn red with safety alerts.
-2. **Close Door (5s Delay)**: Watch the radial 5-second countdown timer dial tick down. When 0.0s is reached, fans restart and sensor readings stabilize.
-3. **Cancel Countdown Test**: Click "Close Door", then click "Open Door" within 2 seconds. The countdown is immediately aborted and the system remains safely paused!
-4. **Tap Touch Sensor**: Toggles the White LED relay locally just like touching the physical TTP223 sensor.
-5. **Ripening Gas Spike**: Injects an ethylene surge to test the automated exhaust ventilation purge.
-6. **Virtual Serial Monitor**: Displays real-time Arduino C++ serial output at 115200 baud.
-
----
-
-## 📡 ESP32 REST API Endpoints
-
-* `GET /api/telemetry/latest` — Returns current chamber temperature, humidity, gas ppm, door status, and relay states.
-* `POST /api/telemetry` — ESP32 telemetry upload endpoint.
-* `POST /api/control` — Web app manual relay override commands (Inlet Fan, Outlet Fan, Humidifier, White LED, Blue LED, Mode).
-* `GET /api/telemetry/history` — Returns historical sensor readings.
-* `GET /api/config` — Fetches current crop threshold configuration.
-* `POST /api/config` — Deploys updated setpoints to the chamber.
-* `GET /api/export/csv` — Generates and downloads full CSV telemetry log.
-
----
-
-## 💻 Arduino ESP32 Firmware Setup
-
-The production-ready firmware is located in:
-```
-firmware/esp32_freshguard.ino
+Run automated test suite:
+```bash
+npm test
 ```
 
-### Steps to Flash:
-1. Open `firmware/esp32_freshguard.ino` in the Arduino IDE.
-2. In **Tools > Board**, select **ESP32 Dev Module** or **WEMOS LOLIN32**.
-3. Install required libraries from Arduino Library Manager:
+### 2. Start the Frontend Dashboard
+```bash
+cd app
+npm install
+npm run dev
+```
+The dashboard runs at `http://localhost:5173`.
+
+### 3. Flash the ESP32 Firmware
+1. Open [esp32_freshguard.ino](esp32_freshguard.ino) in Arduino IDE.
+2. Select Board: **ESP32 Dev Module**.
+3. Install dependencies from the Arduino Library Manager:
    - `DHT sensor library` by Adafruit
-   - `ArduinoJson` (v6.x) by Benoit Blanchon
-   - `WiFi`, `HTTPClient` & `WebServer` (included with ESP32 Arduino core)
-4. Update `WIFI_SSID`, `WIFI_PASSWORD`, and `SERVER_HOST` with your Wi-Fi credentials and PC's local IP address.
-5. Connect your ESP32 via USB-C/micro-USB and click **Upload**.
+   - `ArduinoJson` (v6 or v7) by Benoit Blanchon
+4. Connect the ESP32 via USB and click **Upload**.
+5. After boot, the Blue LED will blink at 350ms intervals. Open the Web Dashboard, click **Pair Chamber via BLE**, and configure your Wi-Fi credentials.
+
+---
+
+## 📁 Repository Structure
+
+```
+├── esp32_freshguard.ino  # Production ESP32 firmware (BLE + Local REST + Interlock)
+├── project.md            # Hardware data contracts, database schema & system specs
+├── app/                  # React 18 + TypeScript + Vite + PWA web dashboard
+│   ├── src/
+│   │   ├── pages/        # Dashboard, BoxDetail, Devices, Automation, Profile
+│   │   ├── store/        # Zustand stores (deviceStore, authStore, socketStore)
+│   │   ├── utils/        # Web Bluetooth API utilities (ble.ts)
+│   │   └── components/   # UI components and modals
+│   └── package.json
+├── server/               # Express + TypeScript + Socket.io backend
+│   ├── src/
+│   │   ├── routes/       # Auth, devices, telemetry, alerts endpoints
+│   │   ├── socket/       # Socket.io room broadcasting
+│   │   └── db/           # Database schema, init, and pg-mem fallback
+│   ├── tests/            # Vitest unit & integration test suites
+│   └── package.json
+└── vite.config.ts        # Root workspace configuration
+```
+
+---
+
+## 📄 License
+This project is licensed under the MIT License.

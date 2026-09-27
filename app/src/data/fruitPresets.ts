@@ -1,0 +1,138 @@
+export interface FruitPreset {
+  id: string;
+  name: string;
+  emoji: string;
+  category: 'Climacteric' | 'Non-Climacteric' | 'High-Respiration';
+  temp_min: number;
+  temp_max: number;
+  humidity_min: number;
+  humidity_max: number;
+  gas_threshold: number; // VOC index threshold (0-1023)
+  shelf_life_gain: string;
+  ethylene_sensitivity: 'Extreme' | 'High' | 'Moderate' | 'Low';
+  tips: string;
+  respirationRate: string;
+}
+
+export const FRUIT_PRESETS: FruitPreset[] = [
+  {
+    id: 'banana',
+    name: 'Cavendish Banana',
+    emoji: '🍌',
+    category: 'Climacteric',
+    temp_min: 13.0,
+    temp_max: 15.0,
+    humidity_min: 90.0,
+    humidity_max: 95.0,
+    gas_threshold: 180,
+    shelf_life_gain: '+5 to +7 Days',
+    ethylene_sensitivity: 'Extreme',
+    tips: 'Extremely sensitive to self-ripening ethylene peaks. Keep above 13°C to avoid chilling injury, with catalytic scrubbers active.',
+    respirationRate: 'Moderate (20-30 mg CO₂/kg·h)',
+  },
+  {
+    id: 'mango',
+    name: 'Alphonso & Tommy Mango',
+    emoji: '🥭',
+    category: 'Climacteric',
+    temp_min: 10.0,
+    temp_max: 13.0,
+    humidity_min: 85.0,
+    humidity_max: 90.0,
+    gas_threshold: 210,
+    shelf_life_gain: '+8 to +12 Days',
+    ethylene_sensitivity: 'High',
+    tips: 'Store at 10–13°C to suppress anthracnose fungal spore germination while preserving brix sugar development.',
+    respirationRate: 'High (30-40 mg CO₂/kg·h)',
+  },
+  {
+    id: 'tomato',
+    name: 'Vine & Roma Tomatoes',
+    emoji: '🍅',
+    category: 'Climacteric',
+    temp_min: 12.0,
+    temp_max: 18.0,
+    humidity_min: 85.0,
+    humidity_max: 90.0,
+    gas_threshold: 240,
+    shelf_life_gain: '+6 to +10 Days',
+    ethylene_sensitivity: 'High',
+    tips: 'Avoid temperatures below 10°C to prevent aroma degradation. Catalytic purging halts over-softening of outer pericarp.',
+    respirationRate: 'Moderate (15-25 mg CO₂/kg·h)',
+  },
+  {
+    id: 'papaya',
+    name: 'Red Lady Papaya',
+    emoji: '🍈',
+    category: 'Climacteric',
+    temp_min: 10.0,
+    temp_max: 13.0,
+    humidity_min: 85.0,
+    humidity_max: 90.0,
+    gas_threshold: 200,
+    shelf_life_gain: '+7 to +11 Days',
+    ethylene_sensitivity: 'Extreme',
+    tips: 'High susceptibility to skin scald below 10°C. Constant misting prevents moisture loss and hollow-core desiccation.',
+    respirationRate: 'High (25-35 mg CO₂/kg·h)',
+  },
+  {
+    id: 'avocado',
+    name: 'Hass Avocado',
+    emoji: '🥑',
+    category: 'Climacteric',
+    temp_min: 5.0,
+    temp_max: 12.0,
+    humidity_min: 90.0,
+    humidity_max: 95.0,
+    gas_threshold: 160,
+    shelf_life_gain: '+9 to +14 Days',
+    ethylene_sensitivity: 'Extreme',
+    tips: 'Once picked, avocados release intense bursts of ethylene. Keep VOC index below 160 to lock in firm green condition.',
+    respirationRate: 'High (40-50 mg CO₂/kg·h)',
+  },
+  {
+    id: 'berries',
+    name: 'Strawberries & Blueberries',
+    emoji: '🍓',
+    category: 'Non-Climacteric',
+    temp_min: 0.5,
+    temp_max: 2.0,
+    humidity_min: 90.0,
+    humidity_max: 95.0,
+    gas_threshold: 140,
+    shelf_life_gain: '+4 to +6 Days',
+    ethylene_sensitivity: 'Moderate',
+    tips: 'Non-climacteric but highly susceptible to Botrytis cinerea grey mold. 450nm antimicrobial blue light cycles suppress fungal growth.',
+    respirationRate: 'Very High (50-70 mg CO₂/kg·h)',
+  },
+  {
+    id: 'apple',
+    name: 'Honeycrisp & Gala Apples',
+    emoji: '🍎',
+    category: 'Climacteric',
+    temp_min: 0.5,
+    temp_max: 3.5,
+    humidity_min: 90.0,
+    humidity_max: 95.0,
+    gas_threshold: 230,
+    shelf_life_gain: '+15 to +30 Days',
+    ethylene_sensitivity: 'High',
+    tips: 'High ethylene producers. Low temperature storage near freezing dramatically curtails starch conversion into sugars.',
+    respirationRate: 'Low (5-10 mg CO₂/kg·h)',
+  },
+  {
+    id: 'leafy',
+    name: 'Lettuce & Microgreens',
+    emoji: '🥬',
+    category: 'High-Respiration',
+    temp_min: 0.5,
+    temp_max: 2.5,
+    humidity_min: 95.0,
+    humidity_max: 98.0,
+    gas_threshold: 120,
+    shelf_life_gain: '+7 to +10 Days',
+    ethylene_sensitivity: 'Moderate',
+    tips: 'Requires near-saturation relative humidity (95%+) to prevent cell turgor loss and rapid foliar wilting.',
+    respirationRate: 'High (30-50 mg CO₂/kg·h)',
+  },
+];
