@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore'
 
 const SLIDES = [
   {
+    image: '/assets/fruits/mango.jpg',
     icon: 'eco',
     iconColor: 'var(--color-secondary)',
     bgColor: 'var(--color-secondary-container)',
@@ -12,6 +13,7 @@ const SLIDES = [
     badge: '3× Longer Freshness',
   },
   {
+    image: '/assets/fruits/apple.jpg',
     icon: 'sensors',
     iconColor: 'var(--color-primary)',
     bgColor: 'var(--color-primary-fixed)',
@@ -20,6 +22,7 @@ const SLIDES = [
     badge: 'Every 2.5s Live Updates',
   },
   {
+    image: '/assets/fruits/avocado.jpg',
     icon: 'tune',
     iconColor: 'var(--color-tertiary)',
     bgColor: 'var(--color-tertiary-fixed)',
@@ -28,6 +31,7 @@ const SLIDES = [
     badge: 'AUTO + MANUAL Modes',
   },
   {
+    image: '/assets/fruits/dragonfruit.jpg',
     icon: 'qr_code_scanner',
     iconColor: 'var(--color-secondary)',
     bgColor: 'var(--color-secondary-container)',
@@ -72,17 +76,9 @@ export default function OnboardingCarousel() {
 
       {/* Illustration area */}
       <div className="flex-1 flex flex-col items-center justify-center px-8 pt-16 pb-8">
-        {/* Icon circle */}
-        <div
-          className="w-40 h-40 rounded-3xl flex items-center justify-center mb-8 shadow-[var(--shadow-raised)] transition-all duration-500"
-          style={{ background: s.bgColor }}
-        >
-          <span
-            className="material-symbols-outlined text-7xl transition-all duration-300"
-            style={{ color: s.iconColor, fontVariationSettings: "'FILL' 1" }}
-          >
-            {s.icon}
-          </span>
+        {/* Real Photographic Produce Card */}
+        <div className="w-40 h-40 rounded-3xl overflow-hidden mb-8 shadow-xl border-4 border-white transition-all duration-500 shrink-0 bg-white">
+          <img src={s.image} alt={s.headline} className="w-full h-full object-cover" />
         </div>
 
         {/* Badge */}

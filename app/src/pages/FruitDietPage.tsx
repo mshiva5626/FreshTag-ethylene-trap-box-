@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDietStore, ConsumedItem } from '../store/dietStore';
 import { useDeviceStore } from '../store/deviceStore';
+import { getFruitRealImage } from '../utils/fruitImages';
 
 const QUICK_FRUITS = [
   { name: 'Honeycrisp Apple', emoji: '🍎', grams: 180, cal: 95, vitC: 14, fiber: 4.4, pot: 195, orac: 2250 },
@@ -87,8 +88,10 @@ export default function FruitDietPage() {
       {/* ── Top Header with Streak Counter ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xl">🥑</span>
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="w-7 h-7 rounded-full overflow-hidden border border-[#fbd3b9] shadow-xs shrink-0">
+              <img src="/assets/fruits/avocado.jpg" alt="Produce" className="w-full h-full object-cover" />
+            </div>
             <span className="text-xs font-bold text-[#e66a26] uppercase tracking-wider bg-[#ffede0] px-2.5 py-0.5 rounded-full">
               Harvest Wellness
             </span>
@@ -360,9 +363,14 @@ export default function FruitDietPage() {
               className="card-organic p-3.5 flex items-center justify-between text-left hover:border-[#f58a43] transition-all cursor-pointer group"
             >
               <div className="flex items-center gap-2.5">
-                <span className="text-2xl group-hover:scale-110 transition-transform">
-                  {fruit.emoji}
-                </span>
+                <div className="w-10 h-10 rounded-xl overflow-hidden border border-[#e1e7dc] shrink-0 bg-white group-hover:scale-105 transition-transform shadow-xs">
+                  <img
+                    src={getFruitRealImage(fruit.name)}
+                    alt={fruit.name}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
                 <div>
                   <p className="text-xs font-bold text-[#1e241c] leading-tight truncate max-w-[90px]">
                     {fruit.name}
@@ -468,7 +476,14 @@ export default function FruitDietPage() {
             {logs.map((log) => (
               <div key={log.id} className="py-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">{log.emoji}</span>
+                  <div className="w-10 h-10 rounded-xl overflow-hidden border border-[#e1e7dc] shrink-0 bg-[#f5f6f0] shadow-xs">
+                    <img
+                      src={getFruitRealImage(log.name)}
+                      alt={log.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-xs font-bold text-[#1e241c]">{log.name}</p>

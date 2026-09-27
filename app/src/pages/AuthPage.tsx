@@ -68,8 +68,8 @@ export default function AuthPage() {
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-8 max-w-lg mx-auto w-full">
         {/* Brand header */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-[var(--color-surface-container)] flex items-center justify-center shadow mb-3">
-            <span className="material-symbols-outlined text-3xl text-[var(--color-primary-container)]" style={{ fontVariationSettings: "'FILL' 1" }}>eco</span>
+          <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg border-2 border-white bg-white mb-3 shrink-0">
+            <img src="/assets/fruits/apple.jpg" alt="FreshGuard" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-xl font-bold text-[var(--color-on-surface)] tracking-tight">FreshGuard</h1>
           <p className="text-sm text-[var(--color-on-surface-variant)] mt-0.5">Smart produce storage & ethylene telemetry</p>

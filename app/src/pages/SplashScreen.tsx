@@ -30,14 +30,8 @@ export default function SplashScreen() {
       {/* Logo card */}
       <div className="relative z-10 flex flex-col items-center gap-6 animate-[fadeUp_0.6s_ease-out_both]">
         <div className="relative">
-          <div className="w-24 h-24 rounded-3xl bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-raised)] flex items-center justify-center p-3">
-            {/* FreshGuard leaf icon */}
-            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-              <rect width="64" height="64" rx="20" fill="#F5A623" fillOpacity="0.12"/>
-              <path d="M32 8C18 8 10 22 10 34c0 10 8 22 22 22 14 0 22-12 22-22C54 22 46 8 32 8z" fill="#4CAF50" fillOpacity="0.9"/>
-              <path d="M32 14v30M32 14c0 0 10 8 10 20M32 14c0 0-10 8-10 20" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
-              <circle cx="32" cy="44" r="4" fill="#F5A623"/>
-            </svg>
+          <div className="w-24 h-24 rounded-3xl overflow-hidden shadow-2xl border-2 border-white bg-white shrink-0 p-1">
+            <img src="/assets/fruits/apple.jpg" alt="FreshGuard" className="w-full h-full object-cover rounded-2xl" />
           </div>
           {/* Green pulse dot */}
           <div className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--color-secondary)] rounded-full shadow">

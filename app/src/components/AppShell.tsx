@@ -36,8 +36,8 @@ export default function AppShell() {
       <aside className="hidden lg:flex flex-col w-64 min-h-screen bg-white/80 backdrop-blur-md border-r border-[#e1e7dc] py-6 px-4 z-20">
         {/* Brand */}
         <div className="flex items-center gap-3 px-2 mb-7">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#e66a26] to-[#f58a43] flex items-center justify-center shadow-[0_6px_16px_rgba(230,106,38,0.3)]">
-            <span className="material-symbols-outlined text-white text-xl">eco</span>
+          <div className="w-10 h-10 rounded-2xl overflow-hidden border border-[#fbd3b9] shadow-[0_6px_16px_rgba(230,106,38,0.25)] shrink-0 bg-[#ffede0]">
+            <img src="/assets/fruits/apple.jpg" alt="FreshGuard" className="w-full h-full object-cover" />
           </div>
           <div>
             <p className="font-extrabold text-base leading-tight text-[#1e241c] tracking-tight">FreshGuard</p>
@@ -108,9 +108,9 @@ export default function AppShell() {
       <main className="flex-1 flex flex-col overflow-hidden relative z-10">
         {/* Mobile top bar */}
         <header className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-[#e1e7dc] bg-white/90 backdrop-blur-md">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#e66a26] to-[#f58a43] flex items-center justify-center shadow-sm">
-              <span className="material-symbols-outlined text-base text-white">eco</span>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl overflow-hidden border border-[#fbd3b9] shadow-xs shrink-0 bg-[#ffede0]">
+              <img src="/assets/fruits/apple.jpg" alt="FreshGuard" className="w-full h-full object-cover" />
             </div>
             <span className="font-extrabold text-sm text-[#1e241c]">FreshGuard</span>
           </div>

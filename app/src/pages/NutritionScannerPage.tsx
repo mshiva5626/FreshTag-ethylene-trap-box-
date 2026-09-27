@@ -8,6 +8,7 @@ import {
   analyzeProduceText,
   SpecimenData,
 } from '../services/geminiNutrition';
+import { getFruitRealImage } from '../utils/fruitImages';
 
 const INITIAL_SPECIMENS: SpecimenData[] = [
   {
@@ -411,8 +412,8 @@ export default function NutritionScannerPage() {
       {/* ── Top Header with Warm Location & Spectrometry Pill ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-[#fef2e9] border border-[#fbd3b9] flex items-center justify-center text-xl shadow-sm">
-            📷
+          <div className="w-11 h-11 rounded-2xl overflow-hidden border border-[#fbd3b9] shadow-sm shrink-0 bg-[#fef2e9]">
+            <img src="/assets/fruits/apple.jpg" alt="Botanical AI" className="w-full h-full object-cover" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -641,8 +642,14 @@ export default function NutritionScannerPage() {
         {/* Bottom Reticle Identification Strip */}
         <div className="relative z-20 flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-6">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-2xl">{selectedSpecimen.emoji}</span>
+            <div className="flex items-center gap-2.5 mb-1.5">
+              <div className="w-9 h-9 rounded-xl overflow-hidden border-2 border-white/80 shadow-md shrink-0 bg-white/20">
+                <img
+                  src={selectedSpecimen.imageUrl || getFruitRealImage(selectedSpecimen.name)}
+                  alt={selectedSpecimen.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
               <span className="bg-[#e66a26] text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider">
                 {selectedSpecimen.category}
               </span>
@@ -676,7 +683,7 @@ export default function NutritionScannerPage() {
         </div>
       </div>
 
-      {/* ── Produce Specimen Picker (Circular chips) ── */}
+      {/* ── Produce Specimen Picker (Circular chips with Real Photos) ── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-xs font-bold uppercase tracking-wider text-[#596155]">
@@ -688,6 +695,7 @@ export default function NutritionScannerPage() {
         <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none">
           {specimens.map((specimen) => {
             const isSelected = selectedSpecimen.name === specimen.name;
+            const photoUrl = specimen.imageUrl || getFruitRealImage(specimen.name);
             return (
               <button
                 key={specimen.id}
@@ -699,11 +707,19 @@ export default function NutritionScannerPage() {
                 }`}
               >
                 <div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-colors ${
-                    isSelected ? 'bg-[#ffede0]' : 'bg-[#eef3eb]'
+                  className={`w-12 h-12 rounded-full overflow-hidden border-2 transition-all shrink-0 ${
+                    isSelected ? 'border-[#e66a26] shadow-md scale-105' : 'border-white'
                   }`}
                 >
-                  {specimen.emoji}
+                  <img
+                    src={photoUrl}
+                    alt={specimen.name}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/assets/fruits/apple.jpg';
+                    }}
+                  />
                 </div>
                 <span
                   className={`text-[11px] font-semibold whitespace-nowrap ${

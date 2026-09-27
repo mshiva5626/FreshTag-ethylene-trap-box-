@@ -1,4 +1,6 @@
 import { FRUIT_PRESETS } from '../data/fruitPresets';
+import { generateGemmaNutritionAnalysis } from './openrouterGemma';
+import { getFruitRealImage } from '../utils/fruitImages';
 
 export interface SpecimenData {
   id: string;
@@ -192,7 +194,7 @@ function formatSpecimenData(parsed: any, source: 'gemini-vision' | 'gemini-text'
     recommendedHumidity: Number((Number(parsed.recommendedHumidity) || 90.0).toFixed(1)),
     recommendedGasThreshold: Math.round(Number(parsed.recommendedGasThreshold) || 180),
     aiAnalysisNotes: parsed.aiAnalysisNotes || 'Optimized for catalytic ethylene decomposition in FreshGuard vault.',
-    imageUrl,
+    imageUrl: imageUrl || getFruitRealImage(parsed.name),
     source,
   };
 }
@@ -244,14 +246,14 @@ async function callGemini(payload: any): Promise<any> {
 
 /**
  * Analyzes a produce image (from camera capture or file upload) using Gemini Vision.
+ * If Gemini quota/key limits are reached, falls back to Google Gemma 4 31B.
  */
 export async function analyzeProduceImage(
   fileOrDataUrl: File | string,
   userHint?: string
 ): Promise<SpecimenData> {
+  const { base64Data, mimeType, previewUrl } = await optimizeImageForAnalysis(fileOrDataUrl);
   try {
-    const { base64Data, mimeType, previewUrl } = await optimizeImageForAnalysis(fileOrDataUrl);
-
     const userPrompt = `Examine this botanical produce image carefully.
 ${userHint ? `Context hint from user: "${userHint}".` : ''}
 1. Identify the exact fruit or vegetable cultivar.
@@ -283,14 +285,22 @@ ${userHint ? `Context hint from user: "${userHint}".` : ''}
     const parsed = await callGemini(payload);
     return formatSpecimenData(parsed, 'gemini-vision', previewUrl);
   } catch (err) {
-    console.error('[GeminiNutrition] Image analysis failed:', err);
-    // If vision call fails, attempt fallback to best matching preset
-    return fallbackToPreset(userHint || 'Apple', 'Vision analysis encountered an error. Applied USDA preset.');
+    console.warn('[GeminiNutrition] Gemini vision call exceeded quota or failed. Invoking Google Gemma 4 31B fallback...', err);
+    try {
+      const gemmaResult = await generateGemmaNutritionAnalysis(userHint || 'Fresh Harvest Specimen');
+      gemmaResult.imageUrl = previewUrl;
+      gemmaResult.aiAnalysisNotes = (gemmaResult.aiAnalysisNotes || '') + ' (Analyzed via Google Gemma 4 31B backup engine)';
+      return gemmaResult;
+    } catch (gemmaErr) {
+      console.error('[GeminiNutrition] Gemma fallback also failed:', gemmaErr);
+      return fallbackToPreset(userHint || 'Apple', 'Vision analysis encountered an error. Applied USDA preset.');
+    }
   }
 }
 
 /**
  * Analyzes produce by name or botanical query using Gemini.
+ * If Gemini quota/key limits are reached, seamlessly cascades to Google Gemma 4 31B.
  */
 export async function analyzeProduceText(produceName: string): Promise<SpecimenData> {
   try {
@@ -312,8 +322,13 @@ Evaluate its taxonomy, post-harvest respiration kinetics, ethylene sensitivity, 
     const parsed = await callGemini(payload);
     return formatSpecimenData(parsed, 'gemini-text');
   } catch (err) {
-    console.error('[GeminiNutrition] Text analysis failed:', err);
-    return fallbackToPreset(produceName, 'Gemini request timed out. Loaded calibrated horticultural preset.');
+    console.warn('[GeminiNutrition] Gemini key limit reached or failed. Invoking Google Gemma 4 31B fallback...', err);
+    try {
+      return await generateGemmaNutritionAnalysis(produceName);
+    } catch (gemmaErr) {
+      console.error('[GeminiNutrition] Gemma fallback failed:', gemmaErr);
+      return fallbackToPreset(produceName, 'Gemini request timed out. Loaded calibrated horticultural preset.');
+    }
   }
 }
 
