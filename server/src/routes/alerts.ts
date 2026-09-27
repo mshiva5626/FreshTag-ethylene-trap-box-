@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { query } from '../config/database.js';
 import { authenticateJWT, AuthRequest } from '../middleware/auth.js';
 
@@ -105,7 +105,7 @@ router.post('/subscribe', authenticateJWT, async (req: AuthRequest, res: Respons
 // -------------------------------------------------------------
 // GET /api/alerts/vapid-key: Get public VAPID key
 // -------------------------------------------------------------
-router.get('/vapid-key', (req, res) => {
+router.get('/vapid-key', (req: Request, res: Response) => {
   res.status(200).json({
     publicKey: DEMO_VAPID_PUBLIC_KEY,
   });
