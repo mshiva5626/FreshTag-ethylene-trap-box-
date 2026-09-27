@@ -15,6 +15,9 @@ import AnalyticsPage from './pages/AnalyticsPage'
 import ProfilePage from './pages/ProfilePage'
 import PremiumUpgradePage from './pages/PremiumUpgradePage'
 
+import NutritionScannerPage from './pages/NutritionScannerPage'
+import FruitDietPage from './pages/FruitDietPage'
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -29,6 +32,8 @@ export default function App() {
           <Route element={<AppShell />}>
             <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
             <Route path="/app/dashboard" element={<DashboardPage />} />
+            <Route path="/app/scanner" element={<NutritionScannerPage />} />
+            <Route path="/app/diet" element={<FruitDietPage />} />
             <Route path="/app/devices" element={<DevicesPage />} />
             <Route path="/app/devices/pair" element={<PairingWizardPage />} />
             <Route path="/app/devices/:deviceId" element={<BoxDetailPage />} />
