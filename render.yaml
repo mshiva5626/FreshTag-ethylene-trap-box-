@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: freshguard-platform
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: USE_PG_MEM
+        value: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: VITE_GEMINI_API_KEY
+        sync: false
+      - key: VITE_OPENROUTER_API_KEY
+        sync: false

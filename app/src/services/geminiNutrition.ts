@@ -206,39 +206,67 @@ async function callGemini(payload: any): Promise<any> {
   const apiKey = getGeminiApiKey();
   let lastError: Error | null = null;
 
-  for (const model of CANDIDATE_MODELS) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
+  if (apiKey) {
+    for (const model of CANDIDATE_MODELS) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.warn(`[GeminiNutrition] Model ${model} returned ${response.status}: ${errorBody}`);
-        lastError = new Error(`Gemini ${model} HTTP ${response.status}`);
-        continue; // try next model
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.warn(`[GeminiNutrition] Model ${model} returned ${response.status}: ${errorBody}`);
+          lastError = new Error(`Gemini ${model} HTTP ${response.status}`);
+          continue; // try next model
+        }
+
+        const data = await response.json();
+        if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+          const rawText = data.candidates[0].content.parts[0].text;
+          return parseGeminiJson(rawText);
+        } else {
+          lastError = new Error('Empty candidates response from Gemini');
+        }
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        console.warn(`[GeminiNutrition] Error with ${model}:`, err.message);
+        lastError = err;
       }
-
-      const data = await response.json();
-      if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-        const rawText = data.candidates[0].content.parts[0].text;
-        return parseGeminiJson(rawText);
-      } else {
-        lastError = new Error('Empty candidates response from Gemini');
-      }
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      console.warn(`[GeminiNutrition] Error with ${model}:`, err.message);
-      lastError = err;
     }
+  }
+
+  // Attempt backend proxy endpoint /api/nutrition/analyze (utilizes server GEMINI_API_KEY on Render)
+  try {
+    const isImage = !!payload?.contents?.[0]?.parts?.find((p: any) => p.inlineData);
+    let bodyData: any = {};
+    if (isImage) {
+      const inline = payload.contents[0].parts.find((p: any) => p.inlineData).inlineData;
+      bodyData = { image: inline.data, mimeType: inline.mimeType };
+    } else {
+      const textPart = payload?.contents?.[0]?.parts?.[0]?.text || '';
+      bodyData = { query: textPart };
+    }
+
+    const res = await fetch('/api/nutrition/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyData),
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      if (json.data) return json.data;
+    }
+  } catch (backendErr) {
+    console.warn('[GeminiNutrition] Backend proxy fallback failed:', backendErr);
   }
 
   throw lastError || new Error('All Gemini models failed to return content');
