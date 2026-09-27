@@ -16,11 +16,14 @@ The ESP32 firmware (`esp32_freshguard.ino`) is fixed and operates as the physica
   - Relay 4 (GPIO 19): 5000K Inspection Daylight LED Bar
   - Relay 5 (GPIO 18): 450nm Antimicrobial Blue Light
 
-### Bluetooth (BLE) Provisioning
-- **Device Advertised Name**: `FreshGuard` / `FreshGuard-Vault-ESP32`
-- **Service UUID**: `4fafc201-1fb5-459e-8fcc-c5c9c331914b`
-- **Wi-Fi Config Characteristic (Write)**: `beb5483e-36e1-4688-b7f5-ea07361b26a8`
-- **Status & Notification Characteristic (Read/Notify)**: `1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e`
+### Wi-Fi SoftAP & QR Code Provisioning (Bluetooth Removed)
+- **SoftAP SSID**: `FreshGuard-Setup` (Open network for friction-free phone pairing)
+- **SoftAP Gateway IP**: `192.168.4.1` (Port 80 HTTP)
+- **Captive Portal**: Built-in DNSServer redirects all browser traffic to the embedded setup web portal.
+- **Auto-Join Wi-Fi QR Code**: `WIFI:S:FreshGuard-Setup;T:nopass;;` (Instantly recognized by iPhone & Android cameras)
+- **Setup API Endpoint**: `POST /api/wifi-config` (Accepts `{ ssid, password, account_id, device_id, server }`)
+- **Factory Unpair**: `POST /unpair` or 7-second continuous hold on capacitive touch pin (GPIO 13).
+- **Persistent Account Binding**: Credentials persisted to ESP32 Flash NVS (`Preferences`); chamber automatically reconnects on power-cycle to the same account indefinitely.
 
 ### Timing & Safety Workflow
 - **Safety Interlock**: When door is OPEN, inlet fan, outlet fan, and mist atomizer halt immediately.

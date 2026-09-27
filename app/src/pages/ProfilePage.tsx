@@ -59,7 +59,7 @@ export default function ProfilePage() {
     try {
       const { localWiped } = await unpairDevice(token, deviceId);
       const wipedNote = localWiped
-        ? 'Local box flash memory wiped and reset to BLE pairing mode.'
+        ? 'Local chamber flash memory wiped and reset to Wi-Fi SoftAP / QR pairing mode.'
         : 'Cloud registration removed. Box was offline/remote.';
       setToastMessage(`Chamber ${deviceId} unpaired successfully! ${wipedNote}`);
       setConfirmUnpairDevice(null);
@@ -212,7 +212,7 @@ export default function ProfilePage() {
                 Paired FreshGuard Chambers ({devices.length})
               </h3>
               <p className="text-[11px] text-[var(--color-on-surface-variant)]">
-                Rename vaults or unpair hardware to reset them back to Bluetooth provisioning mode
+                Rename vaults or unpair hardware to reset them back to Wi-Fi SoftAP / QR setup mode
               </p>
             </div>
           </div>

@@ -1,57 +1,55 @@
 /*
   ==============================================================================
-    Smart FreshGuard - ESP32 Firmware with Bluetooth (BLE) Provisioning
+    Smart FreshGuard - ESP32 Firmware with Wi-Fi SoftAP & QR Provisioning
     Autonomous Botanical Precision Storage Chamber for Fruits and Vegetables
     
-    HARDWARE PIN ASSIGNMENTS (UNCHANGED):
+    HARDWARE PIN ASSIGNMENTS (PRESERVED):
     - DHT11 Sensor (Temperature & Relative Humidity):   GPIO 4
     - MQ Gas Sensor (Ethylene / C2H4 / VOC Analog):      GPIO 34 (ADC1_CH6)
     - IR Safety Door Sensor (Optical Beam Interlock):    GPIO 14 (INPUT_PULLUP)
-    - TTP223 Capacitive Touch Sensor (Bezel Light Tap):  GPIO 13
+    - TTP223 Capacitive Touch Sensor (Bezel Tap/Reset):  GPIO 13
     - Relay 1: Inlet HEPA Fan (Air Intake):             GPIO 16 (Active LOW)
     - Relay 2: Outlet Purge / Catalytic Scrubber Fan:    GPIO 17 (Active LOW)
     - Relay 3: 1.7MHz Ultrasonic Humidifier Mist:       GPIO 5  (Active LOW)
     - Relay 4: 5000K Daylight Inspection LED:           GPIO 19 (Active LOW)
-    - Relay 5: 450nm Antimicrobial Blue LED / BLE Blinker: GPIO 18 (Active LOW)
+    - Relay 5: 450nm Blue LED / Status & Pairing Blink: GPIO 18 (Active LOW)
 
     KEY CAPABILITIES:
-    1. Bluetooth Low Energy (BLE) Provisioning (Service 4fafc201...):
-       - Scan name: "FreshGuard" / "FreshGuard-Vault-ESP32"
-       - Web Bluetooth API pairing directly from Laptop/Mobile browser.
-       - Auto-reconnect on boot using Preferences (NVS Flash).
-       - Decoupled asynchronous handling preventing Bluetooth stack watchdog timeouts.
-       - Adheres strictly to 31-byte advertising packet limits (no "adv data too long" errors).
-    2. Local REST API on Port 80 with Full CORS Headers:
-       - GET  /status      -> Returns telemetry, thresholds, and relay status
-       - POST /control     -> Manual relay override & AUTO/MANUAL mode toggle
-       - POST /thresholds  -> Dynamic threshold tuning (temp, humidity, gas)
-       - POST /unpair      -> Wipes stored WiFi & Account NVS, resets to BLE
-       - OPTIONS /*        -> Complete CORS preflight handling for web browsers
-    3. Autonomous Climate PID & Interlock:
+    1. Zero Bluetooth — Pure Wi-Fi SoftAP & QR Code Provisioning:
+       - Broadcasts open Wi-Fi network: "FreshGuard-Setup" (IP: 192.168.4.1)
+       - Built-in Captive Portal (DNSServer) automatically launches setup portal
+         on iOS, Android, macOS, and Windows.
+       - Interactive Web Setup Portal with live 2.4GHz network scanner.
+       - Mobile Camera QR Auto-Join compatible: WIFI:S:FreshGuard-Setup;T:nopass;;
+    2. Persistent Account Binding across Reboots:
+       - Credentials (SSID, Password, Account ID, Device ID, Server) saved to NVS Flash.
+       - Auto-reconnects on every boot and power outage to the SAME account indefinitely.
+       - Continuous Wi-Fi keep-alive loop (retries every 10s if connection drops).
+    3. Factory Reset & Unpair:
+       - Web App / REST API: POST /unpair resets credentials and re-opens SoftAP.
+       - Hardware Failsafe: Hold Capacitive Touch (GPIO 13) for 7+ seconds to wipe
+         credentials and return to pairing mode without needing network access.
+    4. Autonomous Botanical Climate PID & Interlock:
        - 5-Second Chamber Stabilization countdown when door closes.
        - Immediate actuator lockout when door is open.
        - Automated catalytic ethylene purge when gas index > threshold.
-       - Resilient state machine preventing lockouts during ALERT state recovery.
        - Ultrasonic misting automation when humidity < target.
-    4. Periodic Cloud Telemetry Upload:
+    5. Periodic Cloud Telemetry Upload:
        - HTTP POST every 2500ms to /api/telemetry matching FreshGuard contract.
        - Non-blocking 1.5s timeout preventing main loop freeze when server is unreachable.
-       - Supports both HTTP and HTTPS endpoints.
+       - Local REST API on Port 80 with complete CORS headers.
   ==============================================================================
 */
 
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WebServer.h>
+#include <DNSServer.h>
 #include <WiFiClient.h>
 #include <WiFiClientSecure.h>
 #include <DHT.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLE2902.h>
 
 // Universal ArduinoJson v6 and v7 Compatibility
 #if defined(ARDUINOJSON_VERSION_MAJOR) && (ARDUINOJSON_VERSION_MAJOR >= 7)
@@ -60,7 +58,7 @@
   typedef StaticJsonDocument<1024> FreshGuardJsonDoc;
 #endif
 
-// ======================== PIN ASSIGNMENTS (UNCHANGED) ========================
+// ======================== PIN ASSIGNMENTS ====================================
 // Sensor: DHT11 (Temperature & Relative Humidity)
 #define DHTPIN               4      // GPIO 4
 #define DHTTYPE              DHT11  // DHT11 sensor type
@@ -82,16 +80,15 @@
 #define RELAY_INLET_FAN      16     // GPIO 16 (HEPA Fresh Air Intake)
 #define RELAY_OUTLET_FAN     17     // GPIO 17 (C2H4 Catalytic Scrubber)
 #define RELAY_HUMIDIFIER     5      // GPIO 5  (1.7MHz Ultrasonic Atomizer)
-#define RELAY_BLUE_LED       18     // GPIO 18 (450nm Antimicrobial Blue Light)
+#define RELAY_BLUE_LED       18     // GPIO 18 (450nm Blue LED / Status Blinker)
 #define RELAY_WHITE_LED      19     // GPIO 19 (5000K Inspection Daylight Bar)
 
-// ======================== BLE GATT UUIDs =============================
-#define BLE_DEVICE_NAME        "FreshGuard-Vault-ESP32"
-#define SERVICE_UUID           "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHAR_WIFI_CONFIG_UUID  "beb5483e-36e1-4688-b7f5-ea07361b26a8" // Write (JSON)
-#define CHAR_STATUS_UUID       "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e" // Read / Notify
+// ======================== SOFT-AP & DNS CONSTANTS ============================
+#define AP_SSID_NAME         "FreshGuard-Setup"
+#define AP_DEFAULT_PASS      ""     // Open network for friction-free phone pairing
+const byte DNS_PORT        = 53;
 
-// ======================== STATE MACHINE ENUMS ========================
+// ======================== STATE MACHINE ENUMS ================================
 enum SystemState {
   STATE_NORMAL,
   STATE_DOOR_OPEN,
@@ -100,7 +97,7 @@ enum SystemState {
   STATE_ALERT
 };
 
-// ======================== GLOBAL VARIABLES ===========================
+// ======================== GLOBAL VARIABLES ===================================
 SystemState currentState     = STATE_NORMAL;
 String systemMode            = "AUTO"; // "AUTO" or "MANUAL"
 
@@ -116,8 +113,8 @@ bool   isConfigured          = false;
 // Sensor Readings & Hardware Presence Flags
 float temperature            = 14.2;
 float humidity               = 91.0;
-int gasLevel                 = 110;
-bool isDoorOpen              = false;
+int   gasLevel               = 110;
+bool  isDoorOpen             = false;
 
 // Hardware Detection Flags (True if sensor is giving valid physical signals)
 bool dhtSensorExists         = false;
@@ -135,7 +132,7 @@ bool humidifierState         = false;
 bool blueLedState            = false;
 bool whiteLedState           = false;
 
-// Visual Pairing Indicator (Flashing Blue LED on GPIO 18)
+// Visual Pairing & Status Indicator (Flashing Blue LED on GPIO 18)
 bool isPairingMode                  = true;
 unsigned long lastPairingBlink      = 0;
 const unsigned long PAIRING_BLINK_MS = 350; // 350ms rhythmic flash during pairing mode
@@ -155,31 +152,26 @@ const unsigned long TELEMETRY_INTERVAL = 2500; // 2.5s upload loop
 unsigned long lastWiFiReconnectCheck = 0;
 const unsigned long WIFI_RETRY_MS     = 10000; // Retry WiFi every 10s if disconnected
 
-// Touch sensor robust software debouncing
+// Touch sensor robust software debouncing & long-press reset
 int  lastRawTouchState               = LOW;
-int  debouncedTouchState             = LOW;
-unsigned long lastTouchDebounce      = 0;
+unsigned long touchPressStart        = 0;
+bool touchLongPressHandled           = false;
 
 // Door sensor debounce
 bool lastRawDoorState                = false;
 unsigned long lastDoorDebounce       = 0;
 
-// BLE globals & asynchronous decouplers
-BLEServer* pServer                  = nullptr;
-BLECharacteristic* pStatusChar      = nullptr;
-BLECharacteristic* pConfigChar      = nullptr;
-bool bleClientConnected             = false;
-bool oldBleClientConnected          = false;
+// Asynchronous flags
+volatile bool pendingWiFiConnect     = false;
+volatile bool pendingUnpair          = false;
 
-// Decoupled asynchronous flags (prevents blocking FreeRTOS Bluetooth stack)
-volatile bool pendingWiFiConfig     = false;
-String pendingConfigPayload         = "";
-volatile bool pendingUnpair         = false;
-
-// Objects
+// Networking Objects
 DHT dht(DHTPIN, DHTTYPE);
 WebServer localServer(80);
+DNSServer dnsServer;
 Preferences preferences;
+IPAddress apIP(192, 168, 4, 1);
+IPAddress netMsk(255, 255, 255, 0);
 
 // Forward declarations
 void setRelay(uint8_t pin, bool state);
@@ -189,19 +181,196 @@ void handleDoorWorkflow();
 void executeAutoClimateControl();
 void handleTouchSensor();
 void uploadTelemetry();
-void setupLocalHttpServer();
+void setupHttpServerRoutes();
 bool connectToWiFi(const char* ssid, const char* password);
-void sendStatusBLE(String statusMsg);
-void processWiFiConfig(String jsonPayload);
-void initBLE();
-void unpairAndResetToBLE();
+void startPairingModeAP();
+void unpairAndResetToAP();
 void loadThresholdsFromNVS();
 void saveThresholdsToNVS();
 void sendCORSHeaders();
 bool parseRelayState(JsonVariant v);
+void handlePortalRoot();
+void handleScanWifi();
+void handleWifiConfigApi();
 
-// ======================== RELAY STATE PARSER =========================
-// Handles boolean true/false, integer 1/0, and strings "ON"/"OFF"/"TRUE"/"FALSE"
+// ======================== EMBEDDED SETUP WEB PORTAL HTML =====================
+const char SETUP_HTML[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>FreshGuard Vault Setup</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card: #131d2e;
+      --accent: #10b981;
+      --accent-hover: #059669;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: #1e293b;
+      --input-bg: #0f172a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    body { background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 440px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+    .header { text-align: center; margin-bottom: 24px; }
+    .logo-badge { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; background: rgba(16,185,129,0.15); border-radius: 16px; color: var(--accent); margin-bottom: 12px; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    p.subtitle { font-size: 13px; color: var(--muted); line-height: 1.4; }
+    .status-pill { display: inline-flex; align-items: center; gap: 6px; background: rgba(16,185,129,0.12); color: var(--accent); padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; margin-top: 10px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+    input, select { width: 100%; background: var(--input-bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; color: var(--text); font-size: 14px; outline: none; transition: border-color 0.2s; }
+    input:focus, select:focus { border-color: var(--accent); }
+    .btn { display: block; width: 100%; background: var(--accent); color: #022c22; font-weight: 700; font-size: 14px; padding: 14px; border: none; border-radius: 14px; cursor: pointer; text-align: center; margin-top: 20px; transition: background 0.2s, transform 0.1s; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .scan-btn { background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; margin-top: 6px; width: auto; display: inline-block; }
+    .notice { font-size: 11px; color: var(--muted); text-align: center; margin-top: 16px; line-height: 1.5; }
+    #status-msg { display: none; margin-top: 16px; padding: 12px; border-radius: 12px; font-size: 12px; text-align: center; }
+    .success-msg { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .error-msg { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="logo-badge">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <h1>FreshGuard Botanical Vault</h1>
+      <p class="subtitle">Precision Chamber Setup & Account Binding</p>
+      <div class="status-pill">
+        <span class="dot"></span>
+        Setup Hotspot Active (192.168.4.1)
+      </div>
+    </div>
+
+    <form id="setupForm">
+      <div class="form-group">
+        <label for="ssid">2.4GHz Wi-Fi Network Name (SSID)</label>
+        <input type="text" id="ssid" name="ssid" placeholder="Enter or select your Wi-Fi name" required>
+        <button type="button" class="scan-btn" id="scanBtn" onclick="scanNetworks()">Scan Visible Networks</button>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Wi-Fi Password</label>
+        <input type="password" id="password" name="password" placeholder="Wi-Fi Password (leave blank if open)">
+      </div>
+
+      <div class="form-group">
+        <label for="account_id">User Account ID</label>
+        <input type="text" id="account_id" name="account_id" value="mshiva5626" required>
+      </div>
+
+      <div class="form-group">
+        <label for="device_id">Device Hardware ID</label>
+        <input type="text" id="device_id" name="device_id" value="SF-001" required>
+      </div>
+
+      <div class="form-group">
+        <label for="server">Cloud Telemetry URL</label>
+        <input type="text" id="server" name="server" value="http://192.168.1.100:8080/api/telemetry" required>
+      </div>
+
+      <button type="submit" class="btn" id="submitBtn">Connect Chamber to Wi-Fi</button>
+    </form>
+
+    <div id="status-msg"></div>
+
+    <p class="notice">
+      Once connected, the chamber will turn off its setup hotspot, link to your account, and stream botanical telemetry.
+    </p>
+  </div>
+
+  <script>
+    // Pre-fill query parameters if present (?account=...&device=...)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('account')) document.getElementById('account_id').value = params.get('account');
+    if (params.get('device')) document.getElementById('device_id').value = params.get('device');
+
+    async function scanNetworks() {
+      const btn = document.getElementById('scanBtn');
+      btn.innerText = 'Scanning...';
+      btn.disabled = true;
+      try {
+        const res = await fetch('/scan-wifi');
+        const data = await res.json();
+        if (data.networks && data.networks.length > 0) {
+          let select = document.getElementById('netSelect');
+          if (!select) {
+            select = document.createElement('select');
+            select.id = 'netSelect';
+            select.style.marginTop = '8px';
+            select.onchange = function() {
+              if (this.value) document.getElementById('ssid').value = this.value;
+            };
+            btn.parentNode.insertBefore(select, btn.nextSibling);
+          }
+          select.innerHTML = '<option value="">-- Select Scanned Network --</option>';
+          data.networks.forEach(n => {
+            const opt = document.createElement('option');
+            opt.value = n.ssid;
+            opt.innerText = n.ssid + ' (' + n.rssi + ' dBm)' + (n.secure ? ' 🔒' : '');
+            select.appendChild(opt);
+          });
+          btn.innerText = 'Scan Complete (' + data.networks.length + ' found)';
+        } else {
+          btn.innerText = 'No networks detected (Rescan)';
+        }
+      } catch (e) {
+        btn.innerText = 'Scan error (Type manually)';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('setupForm').onsubmit = async function(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submitBtn');
+      const statusMsg = document.getElementById('status-msg');
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Transmitting to Flash NVS...';
+
+      const payload = {
+        ssid: document.getElementById('ssid').value.trim(),
+        password: document.getElementById('password').value,
+        account_id: document.getElementById('account_id').value.trim(),
+        device_id: document.getElementById('device_id').value.trim(),
+        server: document.getElementById('server').value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/wifi-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        statusMsg.style.display = 'block';
+        statusMsg.className = 'success-msg';
+        statusMsg.innerHTML = '<strong>Credentials Stored!</strong><br>Chamber is now connecting to ' + payload.ssid + '. Once connected, return to your FreshGuard Web App to monitor your produce vault.';
+        submitBtn.innerText = 'Connecting...';
+      } catch (err) {
+        statusMsg.style.display = 'block';
+        statusMsg.className = 'error-msg';
+        statusMsg.innerText = 'Error sending credentials. Please try again.';
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Connect Chamber to Wi-Fi';
+      }
+    };
+  </script>
+</body>
+</html>
+)rawliteral";
+
+// ======================== RELAY STATE PARSER =================================
 bool parseRelayState(JsonVariant v) {
   if (v.is<bool>()) return v.as<bool>();
   if (v.is<int>()) return v.as<int>() != 0;
@@ -213,7 +382,7 @@ bool parseRelayState(JsonVariant v) {
   return false;
 }
 
-// ======================== CORS HELPER ================================
+// ======================== CORS HELPER ========================================
 void sendCORSHeaders() {
   localServer.sendHeader("Access-Control-Allow-Origin", "*");
   localServer.sendHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
@@ -221,104 +390,151 @@ void sendCORSHeaders() {
   localServer.sendHeader("Access-Control-Max-Age", "86400");
 }
 
-// ======================== BLE CALLBACKS ==============================
-class FreshGuardBLEServerCallbacks : public BLEServerCallbacks {
-  void onConnect(BLEServer* pServer) override {
-    bleClientConnected = true;
-    Serial.println("\n[BLE] >>> Client Connected to FreshGuard Bluetooth! <<<");
-  }
-
-  void onDisconnect(BLEServer* pServer) override {
-    bleClientConnected = false;
-    Serial.println("[BLE] Client disconnected.");
-  }
-};
-
-class FreshGuardConfigCallbacks : public BLECharacteristicCallbacks {
-  void onWrite(BLECharacteristic* pCharacteristic) override {
-    #if defined(ESP_ARDUINO_VERSION_MAJOR) && (ESP_ARDUINO_VERSION_MAJOR >= 3)
-      String value = pCharacteristic->getValue();
-    #else
-      String value = String(pCharacteristic->getValue().c_str());
-    #endif
-
-    if (value.length() > 0) {
-      Serial.printf("\n[BLE Config Write Received] (%d bytes): %s\n", value.length(), value.c_str());
-      // Hand off to loop() asynchronously so the FreeRTOS Bluetooth stack is never blocked
-      pendingConfigPayload = value;
-      pendingWiFiConfig = true;
-    }
-  }
-};
-
-// ======================== BLE HELPER =================================
-void sendStatusBLE(String statusMsg) {
-  if (pStatusChar != nullptr) {
-    pStatusChar->setValue(statusMsg.c_str());
-    if (bleClientConnected) {
-      pStatusChar->notify();
-    }
-  }
-  Serial.print("[BLE Status Notify] ");
-  Serial.println(statusMsg);
+// ======================== RELAY CONTROL HELPER ===============================
+void setRelay(uint8_t pin, bool state) {
+  digitalWrite(pin, state ? RELAY_ACTIVE_LEVEL : RELAY_INACTIVE_LEVEL);
 }
 
-void initBLE() {
-  Serial.println("[BLE] Initializing Bluetooth Low Energy subsystem...");
-  BLEDevice::init("FreshGuard");
-  BLEDevice::setMTU(517); // Set MTU to 517 to avoid JSON truncation
-
-  pServer = BLEDevice::createServer();
-  pServer->setCallbacks(new FreshGuardBLEServerCallbacks());
-
-  BLEService* pService = pServer->createService(SERVICE_UUID);
-
-  // Status & Notification characteristic (Read / Notify)
-  pStatusChar = pService->createCharacteristic(
-    CHAR_STATUS_UUID,
-    BLECharacteristic::PROPERTY_READ |
-    BLECharacteristic::PROPERTY_NOTIFY
-  );
-  pStatusChar->addDescriptor(new BLE2902());
-  pStatusChar->setValue("STATUS:BOOT_INITIALIZING");
-
-  // WiFi Configuration characteristic (Write & Write Without Response)
-  pConfigChar = pService->createCharacteristic(
-    CHAR_WIFI_CONFIG_UUID,
-    BLECharacteristic::PROPERTY_WRITE |
-    BLECharacteristic::PROPERTY_WRITE_NR
-  );
-  pConfigChar->setCallbacks(new FreshGuardConfigCallbacks());
-
-  pService->start();
-
-  // Primary Advertisement Data: Flags + 128-bit Service UUID
-  // Flags (3 bytes) + 128-bit UUID (18 bytes) = 21 bytes (Fits safely in 31-byte limit!)
-  BLEAdvertisementData advData;
-  advData.setFlags(0x06); // General Discoverable + BR/EDR Not Supported
-  advData.setCompleteServices(BLEUUID(SERVICE_UUID));
-
-  // Scan Response Data: Device Name
-  // Complete Local Name: 2 bytes header + 22 bytes string = 24 bytes (Fits safely in 31-byte limit!)
-  BLEAdvertisementData scanData;
-  scanData.setName("FreshGuard-Vault-ESP32");
-
-  BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->setAdvertisementData(advData);
-  pAdvertising->setScanResponseData(scanData);
-  pAdvertising->setScanResponse(true);
-  pAdvertising->setMinPreferred(0x06); // 7.5ms
-  pAdvertising->setMaxPreferred(0x12); // 22.5ms
-  BLEDevice::startAdvertising();
-
-  Serial.println("[BLE] Advertising started. Service UUID: " SERVICE_UUID " | Scan Name: FreshGuard-Vault-ESP32");
+// ======================== CAPTIVE PORTAL DETECTION ===========================
+bool isIp(String str) {
+  for (size_t i = 0; i < str.length(); i++) {
+    int c = str.charAt(i);
+    if (c != '.' && (c < '0' || c > '9')) {
+      return false;
+    }
+  }
+  return true;
 }
 
-// ======================== FACTORY UNPAIR & BLE RESET =================
-void unpairAndResetToBLE() {
+void handlePortalRoot() {
+  if (isPairingMode) {
+    String host = localServer.hostHeader();
+    if (!isIp(host) && host.indexOf("192.168.4.1") < 0) {
+      localServer.sendHeader("Location", "http://192.168.4.1/", true);
+      localServer.send(302, "text/plain", "");
+      return;
+    }
+    localServer.send(200, "text/html", SETUP_HTML);
+  } else {
+    localServer.send(200, "text/html", SETUP_HTML);
+  }
+}
+
+// ======================== WI-FI SCANNER API ==================================
+void handleScanWifi() {
+  sendCORSHeaders();
+  int n = WiFi.scanNetworks();
+  String json = "{\"networks\":[";
+  for (int i = 0; i < n; ++i) {
+    if (i > 0) json += ",";
+    json += "{\"ssid\":\"" + WiFi.SSID(i) + "\",\"rssi\":" + String(WiFi.RSSI(i)) + ",\"secure\":" + ((WiFi.encryptionType(i) != WIFI_AUTH_OPEN) ? "true" : "false") + "}";
+  }
+  json += "]}";
+  localServer.send(200, "application/json", json);
+}
+
+// ======================== WI-FI CONFIG INGESTION =============================
+void handleWifiConfigApi() {
+  sendCORSHeaders();
+  String newSsid = "";
+  String newPass = "";
+  String newAccount = "";
+  String newDeviceId = "";
+  String newServer = "";
+
+  if (localServer.hasArg("plain")) {
+    FreshGuardJsonDoc doc;
+    DeserializationError err = deserializeJson(doc, localServer.arg("plain"));
+    if (!err) {
+      if (!doc["ssid"].isNull())       newSsid = doc["ssid"].as<String>();
+      if (!doc["password"].isNull())   newPass = doc["password"].as<String>();
+      if (!doc["account_id"].isNull()) newAccount = doc["account_id"].as<String>();
+      else if (!doc["account"].isNull()) newAccount = doc["account"].as<String>();
+      if (!doc["device_id"].isNull())  newDeviceId = doc["device_id"].as<String>();
+      if (!doc["server"].isNull())     newServer = doc["server"].as<String>();
+    }
+  }
+
+  // Fallback to form parameters if submitted via basic HTML form
+  if (newSsid.length() == 0 && localServer.hasArg("ssid")) {
+    newSsid = localServer.arg("ssid");
+    if (localServer.hasArg("password"))   newPass = localServer.arg("password");
+    if (localServer.hasArg("account_id")) newAccount = localServer.arg("account_id");
+    else if (localServer.hasArg("account")) newAccount = localServer.arg("account");
+    if (localServer.hasArg("device_id"))  newDeviceId = localServer.arg("device_id");
+    if (localServer.hasArg("server"))     newServer = localServer.arg("server");
+  }
+
+  if (newSsid.length() == 0) {
+    localServer.send(400, "application/json", "{\"error\":\"Missing SSID\"}");
+    return;
+  }
+
+  // Persist to Flash NVS via Preferences
+  preferences.begin("freshguard", false);
+  preferences.putString("ssid", newSsid);
+  preferences.putString("password", newPass);
+  if (newAccount.length() > 0) {
+    preferences.putString("account_id", newAccount);
+    accountId = newAccount;
+  }
+  if (newDeviceId.length() > 0) {
+    preferences.putString("device_id", newDeviceId);
+    deviceId = newDeviceId;
+  }
+  if (newServer.length() > 0) {
+    preferences.putString("server", newServer);
+    serverHost = newServer;
+  }
+  preferences.putBool("configured", true);
+  preferences.end();
+
+  savedSsid = newSsid;
+  savedPass = newPass;
+  isConfigured = true;
+
+  Serial.printf("\n[NVS] Stored Wi-Fi SSID '%s' & Bound Account '%s' securely to Flash!\n",
+                savedSsid.c_str(), accountId.c_str());
+
+  localServer.send(200, "application/json", 
+    "{\"status\":\"ok\",\"message\":\"Credentials saved to Flash. Connecting to Wi-Fi...\",\"account_id\":\"" + accountId + "\",\"device_id\":\"" + deviceId + "\"}");
+
+  pendingWiFiConnect = true;
+}
+
+// ======================== SOFT-AP PAIRING MODE STARTER ======================
+void startPairingModeAP() {
+  isPairingMode = true;
+  lastPairingBlink = millis();
+
+  Serial.println("\n[Pairing Mode] Starting FreshGuard SoftAP & DNS Captive Portal...");
+  WiFi.disconnect();
+  delay(100);
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAPConfig(apIP, apIP, netMsk);
+  WiFi.softAP(AP_SSID_NAME, AP_DEFAULT_PASS);
+
+  delay(200);
+
+  dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+  dnsServer.start(DNS_PORT, "*", apIP);
+
+  localServer.begin();
+
+  Serial.println("=======================================================");
+  Serial.println("  FreshGuard AP Pairing Mode Active!");
+  Serial.print("  Wi-Fi SSID:     "); Serial.println(AP_SSID_NAME);
+  Serial.print("  Local Gateway:  http://"); Serial.println(WiFi.softAPIP());
+  Serial.println("  Wi-Fi QR Code:  WIFI:S:FreshGuard-Setup;T:nopass;;");
+  Serial.println("  Awaiting phone connection or setup submission...");
+  Serial.println("=======================================================\n");
+}
+
+// ======================== FACTORY UNPAIR & AP RESET ==========================
+void unpairAndResetToAP() {
   Serial.println("\n[UNPAIR] >>> Deleting WiFi and Account credentials from Flash NVS! <<<");
   
-  // Wipe all stored data from Preferences
+  // Wipe stored credentials from Preferences
   preferences.begin("freshguard", false);
   preferences.clear();
   preferences.putBool("configured", false);
@@ -343,27 +559,13 @@ void unpairAndResetToBLE() {
   setRelay(RELAY_BLUE_LED, false);
   setRelay(RELAY_WHITE_LED, false);
 
-  // Fully disconnect WiFi and clear credentials
-  Serial.println("[WiFi] Disconnecting WiFi radio and clearing stored network...");
-  WiFi.disconnect(true, true);
-  delay(150);
-  WiFi.mode(WIFI_STA);
+  // Restart SoftAP for new pairing
+  startPairingModeAP();
 
-  // Activate pairing mode blue light flashing
-  isPairingMode = true;
-  lastPairingBlink = millis();
-
-  // Notify connected BLE client
-  sendStatusBLE("STATUS:UNPAIRED:READY_FOR_NEW_USER");
-
-  // Restart BLE advertising in fresh pairing mode
-  Serial.println("[BLE] Restarting BLE advertising in pairing mode...");
-  BLEDevice::startAdvertising();
-
-  Serial.println("[STATUS] >>> Chamber successfully unpaired! Blue LED flashing for pairing. <<<");
+  Serial.println("[STATUS] >>> Chamber successfully unpaired! Blue LED flashing for setup. <<<");
 }
 
-// ======================== NVS THRESHOLD HELPERS ======================
+// ======================== NVS THRESHOLD HELPERS ==============================
 void loadThresholdsFromNVS() {
   preferences.begin("fg_thresholds", true);
   tempMinThreshold     = preferences.getFloat("t_min", 1.0);
@@ -391,78 +593,7 @@ void saveThresholdsToNVS() {
   Serial.println("[NVS] Botanical thresholds successfully persisted to Flash.");
 }
 
-// ======================== NVS CONFIG PROCESSING ======================
-void processWiFiConfig(String jsonPayload) {
-  FreshGuardJsonDoc doc;
-  DeserializationError err = deserializeJson(doc, jsonPayload);
-  if (err) {
-    Serial.println("[BLE] JSON Parse Error in WiFi config!");
-    sendStatusBLE("ERROR:JSON_PARSE");
-    return;
-  }
-
-  // Check for Unpair / Delete / Reset command
-  String actionStr = !doc["action"].isNull() ? doc["action"].as<String>() : "";
-  bool unpairFlag  = !doc["unpair"].isNull() ? doc["unpair"].as<bool>() : false;
-
-  if (actionStr == "UNPAIR" || actionStr == "DELETE" || actionStr == "RESET" || unpairFlag) {
-    unpairAndResetToBLE();
-    return;
-  }
-
-  String newSsid    = !doc["ssid"].isNull() ? doc["ssid"].as<String>() : "";
-  String newPass    = !doc["password"].isNull() ? doc["password"].as<String>() : "";
-  String newServer  = !doc["server"].isNull() ? doc["server"].as<String>() : "";
-  String newId      = !doc["device_id"].isNull() ? doc["device_id"].as<String>() : "";
-  String newAccount = !doc["account_id"].isNull() ? doc["account_id"].as<String>() :
-                      (!doc["account"].isNull() ? doc["account"].as<String>() : "");
-
-  if (newSsid.length() == 0) {
-    sendStatusBLE("ERROR:EMPTY_SSID");
-    return;
-  }
-
-  // Persist to NVS flash memory via Preferences
-  preferences.begin("freshguard", false); // read/write mode
-  preferences.putString("ssid", newSsid);
-  preferences.putString("password", newPass);
-  if (newServer.length() > 0) {
-    preferences.putString("server", newServer);
-    serverHost = newServer;
-  }
-  if (newId.length() > 0) {
-    preferences.putString("device_id", newId);
-    deviceId = newId;
-  }
-  if (newAccount.length() > 0) {
-    preferences.putString("account_id", newAccount);
-    accountId = newAccount;
-  }
-  preferences.putBool("configured", true);
-  preferences.end();
-
-  // Update in-memory credentials for auto-reconnect
-  savedSsid = newSsid;
-  savedPass = newPass;
-  isConfigured = true;
-
-  Serial.printf("[NVS] WiFi & Account '%s' securely saved to Flash!\n", accountId.c_str());
-  sendStatusBLE("STATUS:CONNECTING_TO_WIFI:ACCOUNT:" + accountId);
-
-  // Attempt connection
-  bool success = connectToWiFi(newSsid.c_str(), newPass.c_str());
-  if (success) {
-    isPairingMode = false;
-    blueLedState = false;
-    setRelay(RELAY_BLUE_LED, false); // Turn off pairing flash upon successful connection
-    sendStatusBLE("STATUS:CONNECTED:" + WiFi.localIP().toString() + ":ACCOUNT:" + accountId);
-  } else {
-    isPairingMode = true; // Keep flashing blue LED if connection failed
-    sendStatusBLE("STATUS:WIFI_FAILED:ACCOUNT:" + accountId);
-  }
-}
-
-// ======================== WIFI CONNECTION HELPER =====================
+// ======================== WIFI CONNECTION HELPER =============================
 bool connectToWiFi(const char* ssid, const char* password) {
   Serial.print("\n[WiFi] Connecting to SSID: ");
   Serial.println(ssid);
@@ -475,7 +606,7 @@ bool connectToWiFi(const char* ssid, const char* password) {
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 30) {
     delay(500);
-    // Smoothly flash blue LED while connecting
+    // Smoothly toggle blue LED while attempting connection
     blueLedState = !blueLedState;
     setRelay(RELAY_BLUE_LED, blueLedState);
     Serial.print(".");
@@ -490,7 +621,15 @@ bool connectToWiFi(const char* ssid, const char* password) {
     Serial.print(WiFi.RSSI());
     Serial.println(" dBm");
 
-    // Ensure Local REST Server is active
+    // Close SoftAP and DNS server once connected to station
+    dnsServer.stop();
+    WiFi.softAPdisconnect(true);
+
+    isPairingMode = false;
+    blueLedState = false;
+    setRelay(RELAY_BLUE_LED, false);
+
+    // Ensure Local REST Server is running on new station IP
     localServer.begin();
     return true;
   } else {
@@ -499,452 +638,8 @@ bool connectToWiFi(const char* ssid, const char* password) {
   }
 }
 
-// ======================== RELAY CONTROL HELPER =======================
-void setRelay(uint8_t pin, bool state) {
-  digitalWrite(pin, state ? RELAY_ACTIVE_LEVEL : RELAY_INACTIVE_LEVEL);
-}
-
-// ======================== SETUP ======================================
-void setup() {
-  Serial.begin(115200);
-  delay(400);
-
-  Serial.println("\n\n=======================================================");
-  Serial.println("  Smart FreshGuard - ESP32 Autonomous Vault Initializing ");
-  Serial.println("=======================================================");
-
-  // Set Relay Outputs to Inactive level FIRST before pinMode to prevent startup relay chatter
-  digitalWrite(RELAY_INLET_FAN, RELAY_INACTIVE_LEVEL);
-  digitalWrite(RELAY_OUTLET_FAN, RELAY_INACTIVE_LEVEL);
-  digitalWrite(RELAY_HUMIDIFIER, RELAY_INACTIVE_LEVEL);
-  digitalWrite(RELAY_BLUE_LED, RELAY_INACTIVE_LEVEL);
-  digitalWrite(RELAY_WHITE_LED, RELAY_INACTIVE_LEVEL);
-
-  pinMode(RELAY_INLET_FAN, OUTPUT);
-  pinMode(RELAY_OUTLET_FAN, OUTPUT);
-  pinMode(RELAY_HUMIDIFIER, OUTPUT);
-  pinMode(RELAY_BLUE_LED, OUTPUT);
-  pinMode(RELAY_WHITE_LED, OUTPUT);
-
-  // ESP32 ADC: Full 0 - 3.3V attenuation for 12-bit analog gas sensor on GPIO 34
-  #if defined(ADC_ATTEN_DB_12)
-    analogSetPinAttenuation(MQ_PIN, ADC_ATTEN_DB_12);
-  #elif defined(ADC_ATTEN_DB_11)
-    analogSetPinAttenuation(MQ_PIN, ADC_ATTEN_DB_11);
-  #else
-    analogSetPinAttenuation(MQ_PIN, ADC_11db);
-  #endif
-  analogSetAttenuation(ADC_11db);
-
-  // Initialize Sensors
-  pinMode(IR_DOOR_PIN, INPUT_PULLUP);
-  pinMode(TOUCH_PIN, INPUT);
-  dht.begin();
-  Serial.println("[Sensors] DHT11 & MQ Ethylene Analog initialized.");
-
-  // Load botanical thresholds from NVS
-  loadThresholdsFromNVS();
-
-  // Initialize Local REST HTTP Server routes once
-  setupLocalHttpServer();
-
-  // Initialize BLE Provisioning Subsystem
-  initBLE();
-
-  // Load Stored WiFi Credentials and Account from Flash (Preferences NVS)
-  preferences.begin("freshguard", true); // read-only mode
-  isConfigured        = preferences.getBool("configured", false);
-  savedSsid           = preferences.getString("ssid", "");
-  savedPass           = preferences.getString("password", "");
-  String savedServer  = preferences.getString("server", "");
-  String savedDevId   = preferences.getString("device_id", "");
-  String savedAccount = preferences.getString("account_id", "");
-  preferences.end();
-
-  if (savedServer.length() > 0)  serverHost = savedServer;
-  if (savedDevId.length() > 0)   deviceId   = savedDevId;
-  if (savedAccount.length() > 0) accountId  = savedAccount;
-
-  // Auto-Reconnect Logic (Handles power outage / re-plugging)
-  if (isConfigured && savedSsid.length() > 0) {
-    Serial.printf("\n[Power Recovery] Found stored WiFi for '%s' & Account '%s'. Auto-reconnecting...\n", 
-                  savedSsid.c_str(), accountId.c_str());
-    bool ok = connectToWiFi(savedSsid.c_str(), savedPass.c_str());
-    if (ok) {
-      isPairingMode = false;
-      blueLedState = false;
-      setRelay(RELAY_BLUE_LED, false);
-      sendStatusBLE("STATUS:CONNECTED:" + WiFi.localIP().toString() + ":ACCOUNT:" + accountId);
-    } else {
-      isPairingMode = true; // Flashes blue LED while offline / awaiting pairing
-      lastPairingBlink = millis();
-      sendStatusBLE("STATUS:WIFI_FAILED:ACCOUNT:" + accountId);
-    }
-  } else {
-    isPairingMode = true; // Flashes blue LED while in BLE pairing mode
-    lastPairingBlink = millis();
-    Serial.printf("\n[Provisioning] No WiFi configured. Blue LED flashing for Bluetooth pairing (Account '%s')...\n", accountId.c_str());
-    sendStatusBLE("STATUS:AWAITING_WIFI_CONFIG:ACCOUNT:" + accountId);
-  }
-
-  // Initial door position check
-  checkDoorStatus();
-  if (isDoorOpen) {
-    currentState = STATE_DOOR_OPEN;
-    Serial.println("[State] Initial State: DOOR OPEN (Safety Paused)");
-  } else {
-    currentState = STATE_NORMAL;
-    Serial.println("[State] Initial State: NORMAL (Chamber Sealed)");
-  }
-}
-
-// ======================== MAIN LOOP ==================================
-void loop() {
-  // 0. Process asynchronous BLE WiFi provisioning if requested
-  if (pendingWiFiConfig) {
-    pendingWiFiConfig = false;
-    processWiFiConfig(pendingConfigPayload);
-  }
-
-  // 0.1 Process asynchronous unpair if requested via HTTP
-  if (pendingUnpair) {
-    pendingUnpair = false;
-    unpairAndResetToBLE();
-  }
-
-  // 0.2 BLE Connection state transition handler
-  if (bleClientConnected && !oldBleClientConnected) {
-    oldBleClientConnected = bleClientConnected;
-    if (WiFi.status() == WL_CONNECTED) {
-      sendStatusBLE("STATUS:CONNECTED:" + WiFi.localIP().toString() + ":ACCOUNT:" + accountId);
-    } else {
-      sendStatusBLE("STATUS:AWAITING_WIFI_CONFIG:ACCOUNT:" + accountId);
-    }
-  }
-  if (!bleClientConnected && oldBleClientConnected) {
-    oldBleClientConnected = bleClientConnected;
-    delay(200); // Give BLE stack time to finish disconnect
-    BLEDevice::startAdvertising();
-    Serial.println("[BLE] Advertising resumed in background.");
-  }
-
-  // 0.3 Blue LED Pairing Mode Flashing (GPIO 18 visual indicator)
-  if (isPairingMode) {
-    if (millis() - lastPairingBlink >= PAIRING_BLINK_MS) {
-      lastPairingBlink = millis();
-      blueLedState = !blueLedState;
-      setRelay(RELAY_BLUE_LED, blueLedState);
-    }
-  }
-
-  // 1. Handle incoming HTTP client requests if WiFi is online
-  if (WiFi.status() == WL_CONNECTED) {
-    localServer.handleClient();
-  } else {
-    // Background WiFi Auto-Reconnect if connection was lost after boot (using in-memory credentials)
-    if (millis() - lastWiFiReconnectCheck >= WIFI_RETRY_MS) {
-      lastWiFiReconnectCheck = millis();
-      if (isConfigured && savedSsid.length() > 0) {
-        Serial.println("[WiFi Keep-Alive] Connection dropped. Auto-reconnecting...");
-        WiFi.begin(savedSsid.c_str(), savedPass.c_str());
-      }
-    }
-  }
-
-  // 2. Read Capacitive Bezel Touch Sensor (Instant White LED toggle with solid debounce)
-  handleTouchSensor();
-
-  // 3. Read IR Safety Door Sensor and run 5s Stabilization State Machine
-  handleDoorWorkflow();
-
-  // 4. Autonomous Climate Control Algorithm (runs during NORMAL and ALERT states)
-  if ((currentState == STATE_NORMAL || currentState == STATE_ALERT) && systemMode == "AUTO") {
-    executeAutoClimateControl();
-  }
-
-  // 5. Periodic Telemetry Upload to Web App
-  if (millis() - lastTelemetryUpload >= TELEMETRY_INTERVAL) {
-    lastTelemetryUpload = millis();
-    readSensors();
-    uploadTelemetry();
-  }
-}
-
-// ======================== SENSOR READING =============================
-void readSensors() {
-  // Read DHT11 Temperature & Relative Humidity
-  float h = dht.readHumidity();
-  float t = dht.readTemperature();
-
-  if (!isnan(h) && !isnan(t) && h >= 1.0 && h <= 100.0) {
-    humidity = h;
-    temperature = t;
-    dhtSensorExists = true;
-    dhtFailCount = 0;
-  } else {
-    dhtFailCount++;
-    if (dhtFailCount >= 3) {
-      dhtSensorExists = false;
-      Serial.println("[Hardware Detection] DHT11 sensor NOT detected or disconnected!");
-    }
-  }
-
-  // Read MQ Gas Sensor (ESP32 ADC1 is 12-bit: 0-4095)
-  int rawGas = analogRead(MQ_PIN);
-  // An active MQ sensor produces baseline reading between 25 and 4085 counts
-  if (rawGas > 25 && rawGas < 4085) {
-    gasLevel = rawGas >> 2; // Map 12-bit (0-4095) to 0-1023 reference
-    gasSensorExists = true;
-    gasFailCount = 0;
-  } else {
-    gasFailCount++;
-    if (gasFailCount >= 3) {
-      gasSensorExists = false;
-      Serial.println("[Hardware Detection] MQ Gas sensor NOT detected (pin floating or disconnected)!");
-    }
-  }
-}
-
-// ======================== DOOR WORKFLOW & SAFETY INTERLOCK ===========
-bool checkDoorStatus() {
-  int sensorVal = digitalRead(IR_DOOR_PIN);
-  bool rawOpen = (sensorVal == DOOR_IS_OPEN_LEVEL);
-
-  if (rawOpen != lastRawDoorState) {
-    lastDoorDebounce = millis();
-    lastRawDoorState = rawOpen;
-  }
-
-  if ((millis() - lastDoorDebounce) >= 40) {
-    isDoorOpen = rawOpen;
-  }
-
-  return isDoorOpen;
-}
-
-void handleDoorWorkflow() {
-  bool currentDoorState = checkDoorStatus();
-
-  switch (currentState) {
-    case STATE_NORMAL:
-    case STATE_ALERT:
-      if (currentDoorState == true) { // Door has just OPENED
-        Serial.println("\n[SAFETY INTERLOCK] >>> IR BEAM BROKEN / DOOR OPEN DETECTED! <<<");
-        currentState = STATE_DOOR_OPEN;
-        
-        // Immediately halt active climate devices to prevent chamber air escape
-        inletFanState = false;
-        outletFanState = false;
-        humidifierState = false;
-        setRelay(RELAY_INLET_FAN, false);
-        setRelay(RELAY_OUTLET_FAN, false);
-        setRelay(RELAY_HUMIDIFIER, false);
-        
-        Serial.println("[Actuators] Inlet Fan: OFF, Outlet Fan: OFF, Mist: OFF (SAFE)");
-        Serial.println("[State] System PAUSED. Awaiting door closure.");
-        
-        // Push immediate door-open event
-        uploadTelemetry();
-      }
-      break;
-
-    case STATE_DOOR_OPEN:
-      if (currentDoorState == false) { // Door has just CLOSED
-        Serial.println("\n[DOOR] >>> DOOR CLOSED DETECTED! <<<");
-        Serial.println("[Timer] Starting 5-second chamber stabilization countdown...");
-        currentState = STATE_WAIT_5_SECONDS;
-        doorClosedTimestamp = millis();
-      }
-      break;
-
-    case STATE_WAIT_5_SECONDS:
-      // Failsafe check: Did the door re-open during countdown?
-      if (currentDoorState == true) {
-        Serial.println("\n[SAFETY] >>> DOOR RE-OPENED DURING COUNTDOWN! CANCELLING TIMER <<<");
-        currentState = STATE_DOOR_OPEN;
-        inletFanState = false;
-        outletFanState = false;
-        humidifierState = false;
-        setRelay(RELAY_INLET_FAN, false);
-        setRelay(RELAY_OUTLET_FAN, false);
-        setRelay(RELAY_HUMIDIFIER, false);
-        return;
-      }
-
-      // Check if 5000ms delay has elapsed
-      if (millis() - doorClosedTimestamp >= RECOVERY_DELAY_MS) {
-        Serial.println("\n[RECOVERY] >>> 5 SECONDS ELAPSED! CHAMBER STABILIZED <<<");
-        
-        // Take fresh sensor readings
-        Serial.println("[Sensors] Reading fresh DHT11 & MQ sensor values...");
-        readSensors();
-        
-        // Resume normal climate control workflow
-        currentState = STATE_NORMAL;
-        Serial.println("[State] Resuming Normal Climate Control Workflow.");
-        
-        if (systemMode == "AUTO") {
-          executeAutoClimateControl();
-        }
-        
-        uploadTelemetry();
-      }
-      break;
-
-    case STATE_RESTART:
-      currentState = STATE_NORMAL;
-      break;
-  }
-}
-
-// ======================== AUTOMATIC CLIMATE LOGIC ====================
-void executeAutoClimateControl() {
-  if (isDoorOpen) return; // Strict safety interlock
-
-  // 1. Ultrasonic Humidity Control (Only if DHT sensor exists)
-  if (dhtSensorExists) {
-    if (humidity < humidityMinThreshold) {
-      humidifierState = true;
-      setRelay(RELAY_HUMIDIFIER, true);
-    } else if (humidity >= humidityMaxThreshold) {
-      humidifierState = false;
-      setRelay(RELAY_HUMIDIFIER, false);
-    }
-  } else {
-    humidifierState = false;
-    setRelay(RELAY_HUMIDIFIER, false);
-  }
-
-  // 2. Gas / Ripening Control (Ethylene Venting)
-  if (gasSensorExists && gasLevel > gasThresholdPpm) {
-    inletFanState = true;
-    outletFanState = true;
-    setRelay(RELAY_INLET_FAN, true);
-    setRelay(RELAY_OUTLET_FAN, true);
-    currentState = STATE_ALERT;
-  } else {
-    // Standard temperature cooling / circulation (Only if DHT sensor exists)
-    if (dhtSensorExists && temperature > tempMaxThreshold) {
-      inletFanState = true;
-      outletFanState = true;
-      setRelay(RELAY_INLET_FAN, true);
-      setRelay(RELAY_OUTLET_FAN, true);
-    } else {
-      inletFanState = false;
-      outletFanState = false;
-      setRelay(RELAY_INLET_FAN, false);
-      setRelay(RELAY_OUTLET_FAN, false);
-      if (currentState == STATE_ALERT) {
-        currentState = STATE_NORMAL;
-      }
-    }
-  }
-}
-
-// ======================== TOUCH SENSOR LOCAL CONTROL =================
-void handleTouchSensor() {
-  int rawReading = digitalRead(TOUCH_PIN);
-
-  if (rawReading != lastRawTouchState) {
-    lastTouchDebounce = millis();
-    lastRawTouchState = rawReading;
-  }
-
-  if ((millis() - lastTouchDebounce) > 50) {
-    if (rawReading != debouncedTouchState) {
-      debouncedTouchState = rawReading;
-      // Trigger toggle on rising edge (tap pressed)
-      if (debouncedTouchState == HIGH) {
-        whiteLedState = !whiteLedState;
-        setRelay(RELAY_WHITE_LED, whiteLedState);
-        Serial.print("[Touch Sensor] Capacitive Bezel Tap: White LED is now ");
-        Serial.println(whiteLedState ? "ON" : "OFF");
-        uploadTelemetry();
-      }
-    }
-  }
-}
-
-// ======================== TELEMETRY UPLOAD (REST API) ================
-void uploadTelemetry() {
-  if (WiFi.status() != WL_CONNECTED) return;
-  if (serverHost.length() < 10) return;
-  if (accountId == "unpaired" || accountId.length() == 0) return;
-
-  WiFiClient client;
-  WiFiClientSecure clientSecure;
-  HTTPClient http;
-
-  http.setTimeout(1500); // 1.5s non-blocking timeout
-
-  bool isHttps = serverHost.startsWith("https://");
-  if (isHttps) {
-    clientSecure.setInsecure();
-    http.begin(clientSecure, serverHost);
-  } else {
-    http.begin(client, serverHost);
-  }
-
-  http.addHeader("Content-Type", "application/json");
-
-  // Create JSON payload matching Smart FreshGuard Web App specification
-  FreshGuardJsonDoc doc;
-  doc["device_id"]   = deviceId;
-  doc["account_id"]  = accountId;
-  doc["door_status"] = isDoorOpen ? "OPEN" : "CLOSED";
-  doc["state"]       = (currentState == STATE_DOOR_OPEN) ? "DOOR_OPEN" :
-                       (currentState == STATE_WAIT_5_SECONDS) ? "WAIT_5_SECONDS" :
-                       (currentState == STATE_ALERT) ? "ALERT" : "NORMAL";
-
-  // Hardware existence flags
-  doc["dht_exists"]  = dhtSensorExists;
-  doc["gas_exists"]  = gasSensorExists;
-  doc["door_exists"] = doorSensorExists;
-
-  // Real sensor readings or null if sensor does not exist
-  if (dhtSensorExists) {
-    doc["temperature"] = round(temperature * 10.0) / 10.0;
-    doc["humidity"]    = round(humidity * 10.0) / 10.0;
-  } else {
-    doc["temperature"] = nullptr;
-    doc["humidity"]    = nullptr;
-  }
-
-  if (gasSensorExists) {
-    doc["gas_level"]   = gasLevel;
-  } else {
-    doc["gas_level"]   = nullptr;
-  }
-
-  doc["system_mode"] = systemMode;
-  doc["inlet_fan"]   = inletFanState ? "ON" : "OFF";
-  doc["outlet_fan"]  = outletFanState ? "ON" : "OFF";
-  doc["humidifier"]  = humidifierState ? "ON" : "OFF";
-  doc["blue_led"]    = blueLedState ? "ON" : "OFF";
-  doc["white_led"]   = whiteLedState ? "ON" : "OFF";
-
-  String requestBody;
-  serializeJson(doc, requestBody);
-
-  int httpCode = http.POST(requestBody);
-  if (httpCode > 0) {
-    Serial.printf("[HTTP POST] Code: %d, Data sent: %s\n", httpCode, requestBody.c_str());
-  } else {
-    Serial.printf("[HTTP POST] Upload error: %s\n", http.errorToString(httpCode).c_str());
-  }
-
-  http.end();
-}
-
-// ======================== LOCAL WEB SERVER API (WITH CORS) ============
-void setupLocalHttpServer() {
-  static bool serverConfigured = false;
-  if (serverConfigured) {
-    localServer.begin();
-    return;
-  }
-  serverConfigured = true;
-
+// ======================== LOCAL HTTP SERVER ROUTES ===========================
+void setupHttpServerRoutes() {
   // Global OPTIONS handler for CORS preflight
   localServer.onNotFound([]() {
     if (localServer.method() == HTTP_OPTIONS) {
@@ -952,9 +647,37 @@ void setupLocalHttpServer() {
       localServer.send(204, "text/plain", "");
       return;
     }
+    if (isPairingMode) {
+      handlePortalRoot();
+      return;
+    }
     sendCORSHeaders();
     localServer.send(404, "application/json", "{\"error\":\"Not Found\"}");
   });
+
+  // Portal & Captive redirects
+  localServer.on("/", HTTP_GET, handlePortalRoot);
+  localServer.on("/setup", HTTP_GET, handlePortalRoot);
+  localServer.on("/generate_204", HTTP_GET, handlePortalRoot);
+  localServer.on("/hotspot-detect.html", HTTP_GET, handlePortalRoot);
+  localServer.on("/ncsi.txt", HTTP_GET, handlePortalRoot);
+  localServer.on("/connecttest.txt", HTTP_GET, handlePortalRoot);
+  localServer.on("/redirect", HTTP_GET, handlePortalRoot);
+
+  // GET /scan-wifi: Scans and returns nearby 2.4GHz networks
+  localServer.on("/scan-wifi", HTTP_OPTIONS, []() {
+    sendCORSHeaders();
+    localServer.send(204, "text/plain", "");
+  });
+  localServer.on("/scan-wifi", HTTP_GET, handleScanWifi);
+
+  // POST /api/wifi-config: Receives credentials from Web Portal or Web App
+  localServer.on("/api/wifi-config", HTTP_OPTIONS, []() {
+    sendCORSHeaders();
+    localServer.send(204, "text/plain", "");
+  });
+  localServer.on("/api/wifi-config", HTTP_POST, handleWifiConfigApi);
+  localServer.on("/config", HTTP_POST, handleWifiConfigApi);
 
   // GET /status: Returns current telemetry, account info, and hardware flags
   localServer.on("/status", HTTP_OPTIONS, []() {
@@ -967,6 +690,8 @@ void setupLocalHttpServer() {
     FreshGuardJsonDoc doc;
     doc["device_id"]   = deviceId;
     doc["account_id"]  = accountId;
+    doc["configured"]  = isConfigured;
+    doc["pairing_mode"] = isPairingMode;
     doc["door_status"] = isDoorOpen ? "OPEN" : "CLOSED";
     doc["state"]       = (currentState == STATE_DOOR_OPEN) ? "DOOR_OPEN" :
                          (currentState == STATE_WAIT_5_SECONDS) ? "WAIT_5_SECONDS" :
@@ -991,17 +716,15 @@ void setupLocalHttpServer() {
       doc["gas_level"]   = nullptr;
     }
 
-    // Actuator states
     doc["inlet_fan"]   = inletFanState ? "ON" : "OFF";
     doc["outlet_fan"]  = outletFanState ? "ON" : "OFF";
     doc["humidifier"]  = humidifierState ? "ON" : "OFF";
     doc["blue_led"]    = blueLedState ? "ON" : "OFF";
     doc["white_led"]   = whiteLedState ? "ON" : "OFF";
     doc["dht_type"]    = "DHT11";
-    doc["wifi_rssi"]   = WiFi.RSSI();
-    doc["ip"]          = WiFi.localIP().toString();
+    doc["wifi_rssi"]   = (WiFi.status() == WL_CONNECTED) ? WiFi.RSSI() : 0;
+    doc["ip"]          = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
 
-    // Active thresholds (compatible with ArduinoJson 6 & 7)
     doc["thresholds"]["temp_min"]      = tempMinThreshold;
     doc["thresholds"]["temp_max"]      = tempMaxThreshold;
     doc["thresholds"]["humidity_min"]  = humidityMinThreshold;
@@ -1108,7 +831,7 @@ void setupLocalHttpServer() {
     }
   });
 
-  // POST /unpair: Delete stored WiFi/Account credentials and reset to BLE pairing mode
+  // POST /unpair: Delete stored WiFi/Account credentials and reset to AP pairing mode
   localServer.on("/unpair", HTTP_OPTIONS, []() {
     sendCORSHeaders();
     localServer.send(204, "text/plain", "");
@@ -1117,10 +840,436 @@ void setupLocalHttpServer() {
   localServer.on("/unpair", HTTP_POST, []() {
     Serial.println("\n[HTTP Server] Received /unpair command from App!");
     sendCORSHeaders();
-    localServer.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"UNPAIR\",\"message\":\"Chamber credentials wiped. BLE pairing active.\"}");
-    pendingUnpair = true; // Handled asynchronously in loop() so HTTP response finishes sending cleanly
+    localServer.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"UNPAIR\",\"message\":\"Chamber credentials wiped. SoftAP pairing active.\"}");
+    pendingUnpair = true; // Handled asynchronously in loop()
   });
 
   localServer.begin();
   Serial.println("[HTTP Server] Local REST API started on port 80 with CORS support");
+}
+
+// ======================== SETUP ==============================================
+void setup() {
+  Serial.begin(115200);
+  delay(400);
+
+  Serial.println("\n\n=======================================================");
+  Serial.println("  Smart FreshGuard - Autonomous Vault Initializing       ");
+  Serial.println("  Firmware: Wi-Fi SoftAP & QR Provisioning Architecture  ");
+  Serial.println("=======================================================");
+
+  // Set Relay Outputs to Inactive level FIRST before pinMode to prevent startup chatter
+  digitalWrite(RELAY_INLET_FAN, RELAY_INACTIVE_LEVEL);
+  digitalWrite(RELAY_OUTLET_FAN, RELAY_INACTIVE_LEVEL);
+  digitalWrite(RELAY_HUMIDIFIER, RELAY_INACTIVE_LEVEL);
+  digitalWrite(RELAY_BLUE_LED, RELAY_INACTIVE_LEVEL);
+  digitalWrite(RELAY_WHITE_LED, RELAY_INACTIVE_LEVEL);
+
+  pinMode(RELAY_INLET_FAN, OUTPUT);
+  pinMode(RELAY_OUTLET_FAN, OUTPUT);
+  pinMode(RELAY_HUMIDIFIER, OUTPUT);
+  pinMode(RELAY_BLUE_LED, OUTPUT);
+  pinMode(RELAY_WHITE_LED, OUTPUT);
+
+  // ESP32 ADC: Full 0 - 3.3V attenuation for 12-bit analog gas sensor on GPIO 34
+  #if defined(ADC_ATTEN_DB_12)
+    analogSetPinAttenuation(MQ_PIN, ADC_ATTEN_DB_12);
+  #elif defined(ADC_ATTEN_DB_11)
+    analogSetPinAttenuation(MQ_PIN, ADC_ATTEN_DB_11);
+  #else
+    analogSetPinAttenuation(MQ_PIN, ADC_11db);
+  #endif
+  analogSetAttenuation(ADC_11db);
+
+  // Initialize Sensors
+  pinMode(IR_DOOR_PIN, INPUT_PULLUP);
+  pinMode(TOUCH_PIN, INPUT);
+  dht.begin();
+  Serial.println("[Sensors] DHT11 & MQ Ethylene Analog initialized.");
+
+  // Load botanical thresholds from NVS
+  loadThresholdsFromNVS();
+
+  // Initialize Local REST HTTP Server routes
+  setupHttpServerRoutes();
+
+  // Load Stored WiFi Credentials and Bound Account from Flash (Preferences NVS)
+  preferences.begin("freshguard", true); // read-only mode
+  isConfigured        = preferences.getBool("configured", false);
+  savedSsid           = preferences.getString("ssid", "");
+  savedPass           = preferences.getString("password", "");
+  String savedServer  = preferences.getString("server", "");
+  String savedDevId   = preferences.getString("device_id", "");
+  String savedAccount = preferences.getString("account_id", "");
+  preferences.end();
+
+  if (savedServer.length() > 0)  serverHost = savedServer;
+  if (savedDevId.length() > 0)   deviceId   = savedDevId;
+  if (savedAccount.length() > 0) accountId  = savedAccount;
+
+  // Auto-Reconnect Logic (Handles power outage / re-plugging)
+  if (isConfigured && savedSsid.length() > 0) {
+    Serial.printf("\n[Power Recovery] Found stored WiFi for '%s' & Account '%s'. Auto-reconnecting...\n", 
+                  savedSsid.c_str(), accountId.c_str());
+    bool ok = connectToWiFi(savedSsid.c_str(), savedPass.c_str());
+    if (ok) {
+      isPairingMode = false;
+      blueLedState = false;
+      setRelay(RELAY_BLUE_LED, false);
+      Serial.println("[Power Recovery] Reconnected to home Wi-Fi and restored account binding!");
+    } else {
+      // Keep credentials intact, retry in loop
+      Serial.println("[Power Recovery] Temporary connection failure. Keep-alive will retry connecting...");
+      isPairingMode = false;
+    }
+  } else {
+    // No Wi-Fi configured: Start SoftAP Pairing Hotspot
+    Serial.printf("\n[Provisioning] No WiFi configured. Launching '%s' hotspot (Account '%s')...\n", 
+                  AP_SSID_NAME, accountId.c_str());
+    startPairingModeAP();
+  }
+
+  // Initial door position check
+  checkDoorStatus();
+  if (isDoorOpen) {
+    currentState = STATE_DOOR_OPEN;
+    Serial.println("[State] Initial State: DOOR OPEN (Safety Paused)");
+  } else {
+    currentState = STATE_NORMAL;
+    Serial.println("[State] Initial State: NORMAL (Chamber Sealed)");
+  }
+}
+
+// ======================== MAIN LOOP ==========================================
+void loop() {
+  // 0. Process asynchronous Wi-Fi connection request from Web Portal
+  if (pendingWiFiConnect) {
+    pendingWiFiConnect = false;
+    delay(500); // Allow HTTP response to finish sending cleanly
+    Serial.println("\n[Provisioning] Connecting to user network...");
+    bool ok = connectToWiFi(savedSsid.c_str(), savedPass.c_str());
+    if (ok) {
+      uploadTelemetry(); // Immediate first sync after provisioning
+    } else {
+      // Re-open AP pairing hotspot if connection failed
+      startPairingModeAP();
+    }
+  }
+
+  // 0.1 Process asynchronous unpair if requested via HTTP
+  if (pendingUnpair) {
+    pendingUnpair = false;
+    unpairAndResetToAP();
+  }
+
+  // 0.2 DNS Captive Portal processing when in AP Pairing mode
+  if (isPairingMode) {
+    dnsServer.processNextRequest();
+
+    // Rhythmic visual blue LED indicator during pairing mode
+    if (millis() - lastPairingBlink >= PAIRING_BLINK_MS) {
+      lastPairingBlink = millis();
+      blueLedState = !blueLedState;
+      setRelay(RELAY_BLUE_LED, blueLedState);
+    }
+  }
+
+  // 1. Handle incoming HTTP client requests
+  localServer.handleClient();
+
+  // 1.1 Wi-Fi Keep-Alive: If configured but disconnected, retry every 10s (preserves account binding)
+  if (!isPairingMode && isConfigured && savedSsid.length() > 0) {
+    if (WiFi.status() != WL_CONNECTED) {
+      if (millis() - lastWiFiReconnectCheck >= WIFI_RETRY_MS) {
+        lastWiFiReconnectCheck = millis();
+        Serial.printf("[WiFi Keep-Alive] Reconnecting to '%s' for Account '%s'...\n", savedSsid.c_str(), accountId.c_str());
+        WiFi.begin(savedSsid.c_str(), savedPass.c_str());
+      }
+    }
+  }
+
+  // 2. Read Capacitive Bezel Touch Sensor (Tap: White LED | 7s Hold: Hardware Factory Reset)
+  handleTouchSensor();
+
+  // 3. Read IR Safety Door Sensor and run 5s Stabilization State Machine
+  handleDoorWorkflow();
+
+  // 4. Autonomous Climate Control Algorithm (runs during NORMAL and ALERT states)
+  if ((currentState == STATE_NORMAL || currentState == STATE_ALERT) && systemMode == "AUTO") {
+    executeAutoClimateControl();
+  }
+
+  // 5. Periodic Telemetry Upload to Web App
+  if (millis() - lastTelemetryUpload >= TELEMETRY_INTERVAL) {
+    lastTelemetryUpload = millis();
+    readSensors();
+    uploadTelemetry();
+  }
+}
+
+// ======================== SENSOR READING =====================================
+void readSensors() {
+  // Read DHT11 Temperature & Relative Humidity
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+
+  if (!isnan(h) && !isnan(t) && h >= 1.0 && h <= 100.0) {
+    humidity = h;
+    temperature = t;
+    dhtSensorExists = true;
+    dhtFailCount = 0;
+  } else {
+    dhtFailCount++;
+    if (dhtFailCount >= 3) {
+      dhtSensorExists = false;
+    }
+  }
+
+  // Read MQ Gas Sensor (ESP32 ADC1 is 12-bit: 0-4095)
+  int rawGas = analogRead(MQ_PIN);
+  if (rawGas > 25 && rawGas < 4085) {
+    gasLevel = rawGas >> 2; // Map 12-bit (0-4095) to 0-1023 reference
+    gasSensorExists = true;
+    gasFailCount = 0;
+  } else {
+    gasFailCount++;
+    if (gasFailCount >= 3) {
+      gasSensorExists = false;
+    }
+  }
+}
+
+// ======================== DOOR WORKFLOW & SAFETY INTERLOCK ===================
+bool checkDoorStatus() {
+  int sensorVal = digitalRead(IR_DOOR_PIN);
+  bool rawOpen = (sensorVal == DOOR_IS_OPEN_LEVEL);
+
+  if (rawOpen != lastRawDoorState) {
+    lastDoorDebounce = millis();
+    lastRawDoorState = rawOpen;
+  }
+
+  if ((millis() - lastDoorDebounce) >= 40) {
+    isDoorOpen = rawOpen;
+  }
+
+  return isDoorOpen;
+}
+
+void handleDoorWorkflow() {
+  bool currentDoorState = checkDoorStatus();
+
+  switch (currentState) {
+    case STATE_NORMAL:
+    case STATE_ALERT:
+      if (currentDoorState == true) { // Door has just OPENED
+        Serial.println("\n[SAFETY INTERLOCK] >>> IR BEAM BROKEN / DOOR OPEN DETECTED! <<<");
+        currentState = STATE_DOOR_OPEN;
+        
+        // Immediately halt active climate devices to prevent chamber air escape
+        inletFanState = false;
+        outletFanState = false;
+        humidifierState = false;
+        setRelay(RELAY_INLET_FAN, false);
+        setRelay(RELAY_OUTLET_FAN, false);
+        setRelay(RELAY_HUMIDIFIER, false);
+        
+        Serial.println("[Actuators] Inlet Fan: OFF, Outlet Fan: OFF, Mist: OFF (SAFE)");
+        Serial.println("[State] System PAUSED. Awaiting door closure.");
+        
+        uploadTelemetry();
+      }
+      break;
+
+    case STATE_DOOR_OPEN:
+      if (currentDoorState == false) { // Door has just CLOSED
+        Serial.println("\n[DOOR] >>> DOOR CLOSED DETECTED! <<<");
+        Serial.println("[Timer] Starting 5-second chamber stabilization countdown...");
+        currentState = STATE_WAIT_5_SECONDS;
+        doorClosedTimestamp = millis();
+      }
+      break;
+
+    case STATE_WAIT_5_SECONDS:
+      // Failsafe check: Did the door re-open during countdown?
+      if (currentDoorState == true) {
+        Serial.println("\n[SAFETY] >>> DOOR RE-OPENED DURING COUNTDOWN! CANCELLING TIMER <<<");
+        currentState = STATE_DOOR_OPEN;
+        inletFanState = false;
+        outletFanState = false;
+        humidifierState = false;
+        setRelay(RELAY_INLET_FAN, false);
+        setRelay(RELAY_OUTLET_FAN, false);
+        setRelay(RELAY_HUMIDIFIER, false);
+        return;
+      }
+
+      // Check if 5000ms delay has elapsed
+      if (millis() - doorClosedTimestamp >= RECOVERY_DELAY_MS) {
+        Serial.println("\n[RECOVERY] >>> 5 SECONDS ELAPSED! CHAMBER STABILIZED <<<");
+        
+        readSensors();
+        currentState = STATE_NORMAL;
+        Serial.println("[State] Resuming Normal Climate Control Workflow.");
+        
+        if (systemMode == "AUTO") {
+          executeAutoClimateControl();
+        }
+        
+        uploadTelemetry();
+      }
+      break;
+
+    case STATE_RESTART:
+      currentState = STATE_NORMAL;
+      break;
+  }
+}
+
+// ======================== AUTOMATIC CLIMATE LOGIC ============================
+void executeAutoClimateControl() {
+  if (isDoorOpen) return; // Strict safety interlock
+
+  // 1. Ultrasonic Humidity Control (Only if DHT sensor exists)
+  if (dhtSensorExists) {
+    if (humidity < humidityMinThreshold) {
+      humidifierState = true;
+      setRelay(RELAY_HUMIDIFIER, true);
+    } else if (humidity >= humidityMaxThreshold) {
+      humidifierState = false;
+      setRelay(RELAY_HUMIDIFIER, false);
+    }
+  } else {
+    humidifierState = false;
+    setRelay(RELAY_HUMIDIFIER, false);
+  }
+
+  // 2. Gas / Ripening Control (Ethylene Venting)
+  if (gasSensorExists && gasLevel > gasThresholdPpm) {
+    inletFanState = true;
+    outletFanState = true;
+    setRelay(RELAY_INLET_FAN, true);
+    setRelay(RELAY_OUTLET_FAN, true);
+    currentState = STATE_ALERT;
+  } else {
+    // Standard temperature cooling / circulation (Only if DHT sensor exists)
+    if (dhtSensorExists && temperature > tempMaxThreshold) {
+      inletFanState = true;
+      outletFanState = true;
+      setRelay(RELAY_INLET_FAN, true);
+      setRelay(RELAY_OUTLET_FAN, true);
+    } else {
+      inletFanState = false;
+      outletFanState = false;
+      setRelay(RELAY_INLET_FAN, false);
+      setRelay(RELAY_OUTLET_FAN, false);
+      if (currentState == STATE_ALERT) {
+        currentState = STATE_NORMAL;
+      }
+    }
+  }
+}
+
+// ======================== TOUCH SENSOR LOCAL CONTROL & RESET =================
+void handleTouchSensor() {
+  int rawReading = digitalRead(TOUCH_PIN);
+
+  if (rawReading == HIGH) {
+    if (touchPressStart == 0) {
+      touchPressStart = millis();
+    } else if (millis() - touchPressStart >= 7000 && !touchLongPressHandled) {
+      touchLongPressHandled = true;
+      Serial.println("\n[RESET] >>> Touch held for 7+ seconds! Hardware Reset Triggered! <<<");
+      // Rapid visual confirmation flash
+      for (int i = 0; i < 6; i++) {
+        setRelay(RELAY_BLUE_LED, true);
+        delay(70);
+        setRelay(RELAY_BLUE_LED, false);
+        delay(70);
+      }
+      unpairAndResetToAP();
+    }
+  } else {
+    if (touchPressStart > 0) {
+      unsigned long duration = millis() - touchPressStart;
+      if (!touchLongPressHandled && duration > 50 && duration < 3000) {
+        // Normal short tap: toggle white LED
+        whiteLedState = !whiteLedState;
+        setRelay(RELAY_WHITE_LED, whiteLedState);
+        Serial.print("[Touch Sensor] Capacitive Bezel Tap: White LED is now ");
+        Serial.println(whiteLedState ? "ON" : "OFF");
+        uploadTelemetry();
+      }
+      touchPressStart = 0;
+      touchLongPressHandled = false;
+    }
+  }
+}
+
+// ======================== TELEMETRY UPLOAD (REST API) ========================
+void uploadTelemetry() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  if (serverHost.length() < 10) return;
+  if (accountId == "unpaired" || accountId.length() == 0) return;
+
+  WiFiClient client;
+  WiFiClientSecure clientSecure;
+  HTTPClient http;
+
+  http.setTimeout(1500); // 1.5s non-blocking timeout
+
+  bool isHttps = serverHost.startsWith("https://");
+  if (isHttps) {
+    clientSecure.setInsecure();
+    http.begin(clientSecure, serverHost);
+  } else {
+    http.begin(client, serverHost);
+  }
+
+  http.addHeader("Content-Type", "application/json");
+
+  FreshGuardJsonDoc doc;
+  doc["device_id"]   = deviceId;
+  doc["account_id"]  = accountId;
+  doc["door_status"] = isDoorOpen ? "OPEN" : "CLOSED";
+  doc["state"]       = (currentState == STATE_DOOR_OPEN) ? "DOOR_OPEN" :
+                       (currentState == STATE_WAIT_5_SECONDS) ? "WAIT_5_SECONDS" :
+                       (currentState == STATE_ALERT) ? "ALERT" : "NORMAL";
+
+  doc["dht_exists"]  = dhtSensorExists;
+  doc["gas_exists"]  = gasSensorExists;
+  doc["door_exists"] = doorSensorExists;
+
+  if (dhtSensorExists) {
+    doc["temperature"] = round(temperature * 10.0) / 10.0;
+    doc["humidity"]    = round(humidity * 10.0) / 10.0;
+  } else {
+    doc["temperature"] = nullptr;
+    doc["humidity"]    = nullptr;
+  }
+
+  if (gasSensorExists) {
+    doc["gas_level"]   = gasLevel;
+  } else {
+    doc["gas_level"]   = nullptr;
+  }
+
+  doc["system_mode"] = systemMode;
+  doc["inlet_fan"]   = inletFanState ? "ON" : "OFF";
+  doc["outlet_fan"]  = outletFanState ? "ON" : "OFF";
+  doc["humidifier"]  = humidifierState ? "ON" : "OFF";
+  doc["blue_led"]    = blueLedState ? "ON" : "OFF";
+  doc["white_led"]   = whiteLedState ? "ON" : "OFF";
+
+  String requestBody;
+  serializeJson(doc, requestBody);
+
+  int httpCode = http.POST(requestBody);
+  if (httpCode > 0) {
+    Serial.printf("[HTTP POST] Code: %d, Data sent for account '%s'\n", httpCode, accountId.c_str());
+  } else {
+    Serial.printf("[HTTP POST] Upload error: %s\n", http.errorToString(httpCode).c_str());
+  }
+
+  http.end();
 }
