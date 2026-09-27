@@ -28,12 +28,12 @@ const SLIDES = [
     badge: 'AUTO + MANUAL Modes',
   },
   {
-    icon: 'bluetooth',
+    icon: 'qr_code_scanner',
     iconColor: 'var(--color-secondary)',
     bgColor: 'var(--color-secondary-container)',
-    headline: 'BLE One-Tap Pairing',
-    body: 'Pair your FreshGuard vault in seconds via Bluetooth. Just open the app, tap Scan, and your device is linked. Works on Chrome and Edge — on iOS, use our QR setup guide.',
-    badge: 'Chrome & Edge BLE',
+    headline: 'Instant QR & Wi-Fi Pairing',
+    body: 'Pair your FreshGuard vault in seconds via QR code. Scan the code on your chamber or connect via Wi-Fi to link your device instantly. Works on all modern browsers and smartphones.',
+    badge: 'Fast QR Setup',
   },
 ]
 

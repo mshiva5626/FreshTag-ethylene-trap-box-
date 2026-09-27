@@ -8,8 +8,8 @@
 **FreshGuard** is an end-to-end IoT platform and autonomous climate vault for precision botanical storage of fruits and vegetables. It monitors temperature, relative humidity, ethylene ($C_2H_4$) / VOC gas concentration, and door access states. 
 
 The system features:
-1. **ESP32 Firmware** with seamless **Web Bluetooth (BLE) Provisioning**, local REST API on port 80 with CORS, and optical safety interlocks.
-2. **PWA Frontend Application** with real-time Socket.io graphs, Web Bluetooth pairing modal, local Wi-Fi control fallbacks, and customizable crop profiles.
+1. **ESP32 Firmware** with **Wi-Fi SoftAP & QR Code Provisioning**, local REST API on port 80 with CORS, and optical safety interlocks.
+2. **PWA Frontend Application** with real-time Socket.io graphs, live camera QR scanner, Wi-Fi configuration wizard, local control fallbacks, and customizable crop profiles.
 3. **High-Performance Express Backend** with PostgreSQL storage (with pg-mem development mode), JWT/OTP authentication, Web Push alerts, and Socket.io live telemetry channels.
 
 ---
@@ -71,13 +71,14 @@ To protect the calibrated microclimate from room temperature and humidity disrup
 
 ---
 
-## 📲 Bluetooth Low Energy (BLE) Provisioning
+## 📲 Wi-Fi SoftAP & QR Code Fast Pairing
 
-The chamber can be provisioned directly from modern desktop and mobile web browsers using the **Web Bluetooth API**:
-- **Device Names**: `FreshGuard` / `FreshGuard-Vault-ESP32`
-- **Service UUID**: `4fafc201-1fb5-459e-8fcc-c5c9c331914b`
-- **Wi-Fi Config Characteristic (Write)**: `beb5483e-36e1-4688-b7f5-ea07361b26a8`
-- **Status Characteristic (Read / Notify)**: `1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e`
+The chamber can be provisioned in seconds from any smartphone camera, tablet, or web browser without Bluetooth:
+- **SoftAP Hotspot**: `FreshGuard-Setup` (Open network, IP: `192.168.4.1`)
+- **Captive Portal**: Automatic setup popup on connection (iOS, Android, macOS, Windows)
+- **Auto-Join Wi-Fi QR**: `WIFI:S:FreshGuard-Setup;T:nopass;;` (Instantly recognized by iPhone & Android cameras)
+- **Persistent Storage**: Wi-Fi credentials and account binding (`Preferences` NVS) survive power outages and reboots indefinitely.
+- **Hardware Failsafe Reset**: Hold touch sensor (GPIO 13) for 7+ seconds to wipe credentials.
 
 ---
 

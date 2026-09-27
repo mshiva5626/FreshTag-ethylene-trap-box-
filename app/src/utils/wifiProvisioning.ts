@@ -4,6 +4,7 @@
  */
 
 import QRCode from 'qrcode';
+import jsQR from 'jsqr';
 
 export const PROVISIONING_CONFIG = {
   AP_SSID: 'FreshGuard-Setup',
@@ -43,6 +44,16 @@ export interface ScannedNetwork {
   secure: boolean;
 }
 
+export interface ParsedQrResult {
+  type: 'WIFI' | 'PORTAL_URL' | 'PAIRING_PAYLOAD' | 'RAW';
+  ssid?: string;
+  password?: string;
+  deviceId?: string;
+  accountId?: string;
+  gatewayIp?: string;
+  raw: string;
+}
+
 /**
  * Generate standard Wi-Fi connection QR code string.
  * Scanning this with any iOS Camera or Android Camera automatically prompts
@@ -79,9 +90,86 @@ export async function generateQrDataUrl(text: string, options?: QRCode.QRCodeToD
 }
 
 /**
+ * Parse any scanned QR code data string into structured pairing information
+ */
+export function parseQrCodeData(data: string): ParsedQrResult {
+  const trimmed = data.trim();
+
+  // 1. Wi-Fi QR Code (WIFI:S:FreshGuard-Setup;T:nopass;;)
+  if (trimmed.startsWith('WIFI:') || trimmed.startsWith('wifi:')) {
+    const ssidMatch = trimmed.match(/S:([^;]+)/i);
+    const passMatch = trimmed.match(/P:([^;]+)/i);
+    return {
+      type: 'WIFI',
+      ssid: ssidMatch ? ssidMatch[1] : PROVISIONING_CONFIG.AP_SSID,
+      password: passMatch ? passMatch[1] : '',
+      gatewayIp: PROVISIONING_CONFIG.DEFAULT_AP_IP,
+      deviceId: PROVISIONING_CONFIG.DEFAULT_DEVICE_ID,
+      raw: trimmed,
+    };
+  }
+
+  // 2. HTTP Portal URL (http://192.168.4.1/setup?account=...&device=...)
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    try {
+      const url = new URL(trimmed);
+      const account = url.searchParams.get('account') || undefined;
+      const device = url.searchParams.get('device') || PROVISIONING_CONFIG.DEFAULT_DEVICE_ID;
+      return {
+        type: 'PORTAL_URL',
+        gatewayIp: url.hostname,
+        deviceId: device,
+        accountId: account,
+        raw: trimmed,
+      };
+    } catch {
+      // Fallback if URL parsing fails
+    }
+  }
+
+  // 3. JSON Pairing Payload ({"device_id":"SF-001", "account_id":"..."})
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const obj = JSON.parse(trimmed);
+      return {
+        type: 'PAIRING_PAYLOAD',
+        deviceId: obj.device_id || obj.device || PROVISIONING_CONFIG.DEFAULT_DEVICE_ID,
+        accountId: obj.account_id || obj.account,
+        ssid: obj.ssid,
+        gatewayIp: obj.ip || PROVISIONING_CONFIG.DEFAULT_AP_IP,
+        raw: trimmed,
+      };
+    } catch {
+      // Fallback
+    }
+  }
+
+  // 4. Raw device ID string
+  return {
+    type: 'RAW',
+    deviceId: trimmed,
+    gatewayIp: PROVISIONING_CONFIG.DEFAULT_AP_IP,
+    raw: trimmed,
+  };
+}
+
+/**
+ * Decode QR code from canvas image pixel data using jsQR
+ */
+export function decodeQrImageData(imageData: ImageData): string | null {
+  const code = jsQR(imageData.data, imageData.width, imageData.height, {
+    inversionAttempts: 'dontInvert',
+  });
+  return code ? code.data : null;
+}
+
+/**
  * Check if the ESP32 chamber is reachable at a given IP (defaults to 192.168.4.1)
  */
-export async function checkChamberReachable(ip = PROVISIONING_CONFIG.DEFAULT_AP_IP, timeoutMs = 2500): Promise<{ reachable: boolean; status?: ChamberStatusResponse }> {
+export async function checkChamberReachable(
+  ip = PROVISIONING_CONFIG.DEFAULT_AP_IP,
+  timeoutMs = 2500
+): Promise<{ reachable: boolean; status?: ChamberStatusResponse }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 

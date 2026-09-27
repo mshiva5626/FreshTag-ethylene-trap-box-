@@ -294,14 +294,14 @@ export default function DashboardPage() {
           <div>
             <h3 className="text-lg font-bold text-[#1e241c]">No FreshGuard Chambers Paired</h3>
             <p className="text-xs text-[#596155] max-w-sm mt-1 leading-relaxed">
-              Pair your ESP32 autonomous botanical chamber via Bluetooth or Wi-Fi to monitor real-time ethylene scrubbing, relative humidity, and temperature.
+              Pair your ESP32 autonomous botanical chamber via Wi-Fi SoftAP or QR code to monitor real-time ethylene scrubbing, relative humidity, and temperature.
             </p>
           </div>
           <button
             onClick={() => navigate('/app/devices/pair')}
             className="btn-terracotta py-3 px-6 rounded-full text-xs font-bold flex items-center gap-2 mt-2"
           >
-            <span className="material-symbols-outlined text-base">bluetooth_searching</span>
+            <span className="material-symbols-outlined text-base">qr_code_scanner</span>
             Pair Your First Chamber
           </button>
         </div>

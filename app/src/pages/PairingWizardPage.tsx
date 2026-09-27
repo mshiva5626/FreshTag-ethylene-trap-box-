@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useDeviceStore } from '../store/deviceStore';
@@ -10,10 +10,13 @@ import {
   sendWifiCredentials,
   fetchNearbyNetworks,
   checkChamberReachable,
+  parseQrCodeData,
+  decodeQrImageData,
   ScannedNetwork,
+  ParsedQrResult,
 } from '../utils/wifiProvisioning';
 
-type PairingMethod = 'qr' | 'direct' | 'manual';
+type PairingMethod = 'scan-camera' | 'display-qr' | 'direct' | 'manual';
 type WizardStep = 'select' | 'configuring' | 'success';
 
 export default function PairingWizardPage() {
@@ -24,12 +27,22 @@ export default function PairingWizardPage() {
   const accountId = user?.account_id || 'mshiva5626';
 
   // Active Pairing Method Tab
-  const [activeTab, setActiveTab] = useState<PairingMethod>('qr');
+  const [activeTab, setActiveTab] = useState<PairingMethod>('scan-camera');
   const [step, setStep] = useState<WizardStep>('select');
 
-  // QR Code Data URLs
+  // Camera QR Scanner State
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const scanIntervalRef = useRef<any>(null);
+
+  // Scanned QR Result Display
+  const [lastScannedResult, setLastScannedResult] = useState<ParsedQrResult | null>(null);
+
+  // QR Code Data URLs (for display & sticker printing)
   const [wifiQrUrl, setWifiQrUrl] = useState<string>('');
-  const [setupUrlQr, setSetupUrlQr] = useState<string>('');
   const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
 
   // Form Inputs
@@ -57,25 +70,147 @@ export default function PairingWizardPage() {
   const [discoveredIp, setDiscoveredIp] = useState<string>('');
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
 
-  // Generate QR codes on mount or when deviceId/accountId changes
+  // Generate QR codes for the display tab
   useEffect(() => {
     async function makeQrCodes() {
       try {
         const wifiStr = getWifiQrString(PROVISIONING_CONFIG.AP_SSID, PROVISIONING_CONFIG.AP_PASS);
         const wUrl = await generateQrDataUrl(wifiStr);
         setWifiQrUrl(wUrl);
-
-        const portalStr = getSetupUrlQrString(accountId, deviceId, chamberIp);
-        const pUrl = await generateQrDataUrl(portalStr);
-        setSetupUrlQr(pUrl);
       } catch (err) {
         console.error('[QR Generation Error]:', err);
       }
     }
     makeQrCodes();
-  }, [accountId, deviceId, chamberIp]);
+  }, [accountId, deviceId]);
 
-  // Scan visible Wi-Fi networks from chamber (if phone/PC is on FreshGuard-Setup)
+  // Clean up camera stream on unmount
+  useEffect(() => {
+    return () => {
+      stopCameraScanner();
+    };
+  }, []);
+
+  // Stop camera helper
+  const stopCameraScanner = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  // Start live webcam / mobile camera scanner
+  const startCameraScanner = async () => {
+    setCameraError(null);
+    setErrorMsg(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', 'true');
+        await videoRef.current.play();
+        setIsCameraActive(true);
+
+        // Run scanner loop every 200ms
+        scanIntervalRef.current = setInterval(captureAndDecodeFrame, 200);
+      }
+    } catch (err: any) {
+      console.warn('[Camera Error]:', err);
+      setCameraError(
+        err.name === 'NotAllowedError'
+          ? 'Camera permission denied. Please allow camera access or use the Upload / Simulation options.'
+          : 'Could not start camera. Try uploading an image or running the In-Code Simulation below.'
+      );
+      stopCameraScanner();
+    }
+  };
+
+  // Capture video frame and decode QR with jsQR
+  const captureAndDecodeFrame = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const decoded = decodeQrImageData(imageData);
+
+    if (decoded) {
+      console.log('[QR Scanner] Successfully decoded QR data:', decoded);
+      handleParsedQrPayload(decoded);
+      stopCameraScanner();
+    }
+  };
+
+  // Handle uploaded QR code image file
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, img.width, img.height);
+      const decoded = decodeQrImageData(imageData);
+
+      if (decoded) {
+        handleParsedQrPayload(decoded);
+      } else {
+        setErrorMsg('Could not detect a valid QR code in this image. Please ensure the QR is clear and well-lit.');
+      }
+    };
+    img.src = URL.createObjectURL(file);
+  };
+
+  // Programmatic verification / In-Code Scan test
+  const handleTestScanInCode = async () => {
+    setIsDemoMode(true);
+    setErrorMsg(null);
+
+    // Simulate scanning the Wi-Fi QR code
+    const testQrData = `WIFI:S:FreshGuard-Setup;T:nopass;;`;
+    handleParsedQrPayload(testQrData);
+  };
+
+  // Process decoded QR data payload
+  const handleParsedQrPayload = (qrString: string) => {
+    const parsed = parseQrCodeData(qrString);
+    setLastScannedResult(parsed);
+
+    if (parsed.deviceId) {
+      setDeviceId(parsed.deviceId);
+    }
+    if (parsed.gatewayIp) {
+      setChamberIp(parsed.gatewayIp);
+    }
+    if (parsed.ssid) {
+      setSsid(parsed.ssid);
+    }
+
+    // Automatically transition to direct configuration or provisioning
+    setActiveTab('direct');
+  };
+
+  // Scan visible Wi-Fi networks from chamber (if connected to FreshGuard-Setup)
   const handleScanChamberNetworks = async () => {
     setScanningNets(true);
     setErrorMsg(null);
@@ -87,7 +222,7 @@ export default function PairingWizardPage() {
         setErrorMsg('No networks returned. Ensure your device is connected to "FreshGuard-Setup" Wi-Fi.');
       }
     } catch {
-      setErrorMsg('Could not reach chamber at ' + chamberIp + '. Please connect to "FreshGuard-Setup" Wi-Fi.');
+      setErrorMsg(`Could not reach chamber at ${chamberIp}. Please connect to "FreshGuard-Setup" Wi-Fi.`);
     } finally {
       setScanningNets(false);
     }
@@ -106,7 +241,7 @@ export default function PairingWizardPage() {
     setStep('configuring');
     setStatusMessage('Transmitting credentials and account binding to Flash NVS...');
 
-    // Demo Mode Simulation
+    // Simulation Mode
     if (isDemoMode) {
       setTimeout(() => {
         setStatusMessage('Chamber connecting to Wi-Fi router...');
@@ -179,7 +314,6 @@ export default function PairingWizardPage() {
     setIsSubmitting(true);
 
     try {
-      // Test reachability if IP provided
       const ip = manualIp.trim() || '192.168.1.100';
       const check = await checkChamberReachable(ip, 2000);
       if (check.reachable && check.status) {
@@ -205,14 +339,6 @@ export default function PairingWizardPage() {
     }
   };
 
-  // Virtual Demo Mode Trigger
-  const handleStartSimulatedScan = () => {
-    setIsDemoMode(true);
-    setSsid('Home_Botanical_WiFi');
-    setPassword('produce123');
-    setActiveTab('direct');
-  };
-
   return (
     <div className="px-4 py-8 max-w-2xl mx-auto">
       {/* Top Header */}
@@ -227,7 +353,7 @@ export default function PairingWizardPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--color-on-surface)]">Add a FreshGuard Vault</h1>
           <p className="text-xs text-[var(--color-on-surface-variant)]">
-            Wi-Fi SoftAP & QR Code Fast Pairing (Bluetooth-Free)
+            Scan Chamber QR Code or Connect via Wi-Fi Setup Hotspot
           </p>
         </div>
       </div>
@@ -248,7 +374,7 @@ export default function PairingWizardPage() {
       {/* Progress Indicators */}
       <div className="flex items-center justify-between px-2 mb-6">
         {[
-          { id: 'select', label: '1. Connect' },
+          { id: 'select', label: '1. Scan & Connect' },
           { id: 'configuring', label: '2. Provision' },
           { id: 'success', label: '3. Online' },
         ].map((s, idx) => {
@@ -287,28 +413,50 @@ export default function PairingWizardPage() {
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* STEP 1: SELECT PAIRING METHOD & CREDENTIAL INPUT               */}
+      {/* STEP 1: SELECT PAIRING METHOD                                 */}
       {/* ------------------------------------------------------------- */}
       {step === 'select' && (
         <div className="space-y-6">
           {/* Method Selection Tabs */}
-          <div className="flex rounded-2xl bg-[var(--color-surface-container)] p-1 border border-[var(--color-outline-variant)]/30">
+          <div className="flex flex-wrap rounded-2xl bg-[var(--color-surface-container)] p-1 border border-[var(--color-outline-variant)]/30">
             <button
               type="button"
-              onClick={() => setActiveTab('qr')}
+              onClick={() => {
+                setActiveTab('scan-camera');
+                stopCameraScanner();
+              }}
               className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                activeTab === 'qr'
+                activeTab === 'scan-camera'
                   ? 'bg-[var(--color-surface)] text-[var(--color-on-surface)] shadow-sm'
                   : 'text-[var(--color-on-surface-variant)] hover:text-[var(--color-on-surface)]'
               }`}
             >
-              <span className="material-symbols-outlined text-base">qr_code_scanner</span>
-              <span>QR Code Pairing</span>
+              <span className="material-symbols-outlined text-base">photo_camera</span>
+              <span>Scan QR Code</span>
             </button>
 
             <button
               type="button"
-              onClick={() => setActiveTab('direct')}
+              onClick={() => {
+                setActiveTab('display-qr');
+                stopCameraScanner();
+              }}
+              className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                activeTab === 'display-qr'
+                  ? 'bg-[var(--color-surface)] text-[var(--color-on-surface)] shadow-sm'
+                  : 'text-[var(--color-on-surface-variant)] hover:text-[var(--color-on-surface)]'
+              }`}
+            >
+              <span className="material-symbols-outlined text-base">qr_code_2</span>
+              <span>Show Wi-Fi QR</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('direct');
+                stopCameraScanner();
+              }}
               className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                 activeTab === 'direct'
                   ? 'bg-[var(--color-surface)] text-[var(--color-on-surface)] shadow-sm'
@@ -316,12 +464,15 @@ export default function PairingWizardPage() {
               }`}
             >
               <span className="material-symbols-outlined text-base">wifi</span>
-              <span>Direct Wi-Fi Setup</span>
+              <span>Direct Setup</span>
             </button>
 
             <button
               type="button"
-              onClick={() => setActiveTab('manual')}
+              onClick={() => {
+                setActiveTab('manual');
+                stopCameraScanner();
+              }}
               className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                 activeTab === 'manual'
                   ? 'bg-[var(--color-surface)] text-[var(--color-on-surface)] shadow-sm'
@@ -329,20 +480,123 @@ export default function PairingWizardPage() {
               }`}
             >
               <span className="material-symbols-outlined text-base">lan</span>
-              <span>Manual LAN IP</span>
+              <span>LAN IP</span>
             </button>
           </div>
 
-          {/* TAB 1: QR CODE PAIRING */}
-          {activeTab === 'qr' && (
+          {/* TAB 1: SCAN QR CODE WITH CAMERA OR IN CODE */}
+          {activeTab === 'scan-camera' && (
+            <div className="card p-6 flex flex-col items-center text-center gap-5">
+              <div>
+                <h2 className="text-xl font-bold text-[var(--color-on-surface)] mb-1">
+                  Scan Chamber QR Code
+                </h2>
+                <p className="text-xs text-[var(--color-on-surface-variant)] max-w-md mx-auto">
+                  Scan the QR sticker on your ESP32 chamber using your webcam or phone camera, upload a QR image, or test scanning in code.
+                </p>
+              </div>
+
+              {/* Camera Scanner Viewport */}
+              <div className="w-full max-w-sm aspect-video bg-black rounded-3xl overflow-hidden relative border-2 border-emerald-500/40 flex items-center justify-center">
+                {isCameraActive ? (
+                  <>
+                    <video ref={videoRef} className="w-full h-full object-cover" />
+                    <canvas ref={canvasRef} className="hidden" />
+                    {/* Animated scanning laser line */}
+                    <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-0.5 bg-emerald-400 shadow-[0_0_12px_#34d399] animate-pulse" />
+                    <div className="absolute bottom-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full text-[11px] text-white font-medium">
+                      Aim camera at chamber QR code
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center gap-3 p-6 text-slate-400">
+                    <span className="material-symbols-outlined text-5xl text-emerald-500/60">
+                      qr_code_scanner
+                    </span>
+                    <span className="text-xs">Camera is offline</span>
+                  </div>
+                )}
+              </div>
+
+              {cameraError && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300">
+                  {cameraError}
+                </div>
+              )}
+
+              {/* Camera Controls */}
+              <div className="w-full max-w-sm flex flex-col gap-2.5">
+                {!isCameraActive ? (
+                  <button
+                    type="button"
+                    onClick={startCameraScanner}
+                    className="btn-primary w-full py-3.5 text-xs font-semibold rounded-full flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-base">photo_camera</span>
+                    Start Camera Scanner
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={stopCameraScanner}
+                    className="btn-secondary w-full py-2.5 text-xs font-medium rounded-full flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-base">stop</span>
+                    Stop Camera
+                  </button>
+                )}
+
+                {/* Upload QR File Alternative */}
+                <div className="flex items-center gap-2">
+                  <label className="btn-secondary flex-1 py-2.5 text-xs font-medium rounded-full cursor-pointer flex items-center justify-center gap-1.5">
+                    <span className="material-symbols-outlined text-sm">upload_file</span>
+                    Upload QR Image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={handleTestScanInCode}
+                    className="btn-secondary flex-1 py-2.5 text-xs font-medium rounded-full flex items-center justify-center gap-1.5 text-emerald-600 dark:text-emerald-400"
+                  >
+                    <span className="material-symbols-outlined text-sm">code</span>
+                    Test Scan In Code
+                  </button>
+                </div>
+              </div>
+
+              {/* Scanned Feedback */}
+              {lastScannedResult && (
+                <div className="w-full max-w-sm p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-left text-xs space-y-1.5 animate-fadeIn">
+                  <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                    <span className="material-symbols-outlined text-sm">check_circle</span>
+                    QR Decoded Successfully!
+                  </div>
+                  <p className="text-[11px] text-[var(--color-on-surface)]">
+                    Detected Payload: <code>{lastScannedResult.raw}</code>
+                  </p>
+                  <p className="text-[11px] text-[var(--color-on-surface-variant)]">
+                    Device: <strong>{lastScannedResult.deviceId || 'SF-001'}</strong> | Wi-Fi: <strong>{lastScannedResult.ssid || 'FreshGuard-Setup'}</strong>
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: SHOW WI-FI QR CODE (FOR PHONE CAMERAS) */}
+          {activeTab === 'display-qr' && (
             <div className="card p-6 flex flex-col items-center text-center gap-6">
               <div>
                 <h2 className="text-xl font-bold text-[var(--color-on-surface)] mb-2">
-                  Pair ESP32 with Camera QR Code
+                  Chamber Setup QR Code
                 </h2>
                 <p className="text-xs text-[var(--color-on-surface-variant)] max-w-md mx-auto leading-relaxed">
-                  Scan this QR code with your iPhone or Android camera to instantly join the chamber's setup network,
-                  or tap the link below to open the setup portal directly.
+                  Point any smartphone camera (iPhone Camera or Android Lens) at this QR code to instantly join the chamber's setup Wi-Fi.
                 </p>
               </div>
 
@@ -366,23 +620,6 @@ export default function PairingWizardPage() {
                 </div>
               </div>
 
-              {/* Instructions Steps */}
-              <div className="w-full text-left text-xs space-y-2.5 p-4 rounded-2xl bg-[var(--color-surface-container)] border border-[var(--color-outline-variant)]/20">
-                <div className="font-semibold text-[var(--color-on-surface)] flex items-center gap-2">
-                  <span className="material-symbols-outlined text-emerald-500 text-sm">tips_and_updates</span>
-                  How to complete setup:
-                </div>
-                <p className="text-[var(--color-on-surface-variant)]">
-                  1. Power on your ESP32. The <strong>Blue LED (GPIO 18)</strong> will flash rhythmically every 350ms indicating setup mode.
-                </p>
-                <p className="text-[var(--color-on-surface-variant)]">
-                  2. Point your phone camera at the QR code above and tap <strong>"Join FreshGuard-Setup"</strong>.
-                </p>
-                <p className="text-[var(--color-on-surface-variant)]">
-                  3. A popup will automatically open the FreshGuard chamber setup portal. Pick your home 2.4GHz Wi-Fi and submit!
-                </p>
-              </div>
-
               {/* Action Buttons */}
               <div className="w-full flex flex-col sm:flex-row gap-3">
                 <a
@@ -404,20 +641,10 @@ export default function PairingWizardPage() {
                   Print Box QR Sticker
                 </button>
               </div>
-
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('direct')}
-                  className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
-                >
-                  Prefer typing your Wi-Fi details here? Switch to Direct Setup →
-                </button>
-              </div>
             </div>
           )}
 
-          {/* TAB 2: DIRECT IN-APP WI-FI PROVISIONING */}
+          {/* TAB 3: DIRECT IN-APP WI-FI PROVISIONING */}
           {activeTab === 'direct' && (
             <div className="card p-6">
               <div className="flex items-center gap-3 mb-5 pb-4 border-b border-[var(--color-outline-variant)]/40">
@@ -426,10 +653,10 @@ export default function PairingWizardPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-[var(--color-on-surface)]">
-                    Direct Chamber Wi-Fi Configuration
+                    Chamber Wi-Fi Configuration
                   </h3>
                   <p className="text-xs text-[var(--color-on-surface-variant)]">
-                    Transmits network details to ESP32 Flash Memory & permanently binds to your account
+                    Transmits network details to ESP32 Flash Memory & permanently binds to account {accountId}
                   </p>
                 </div>
               </div>
@@ -578,20 +805,12 @@ export default function PairingWizardPage() {
                     <span className="material-symbols-outlined text-lg">send</span>
                     {isSubmitting ? 'Transmitting Settings...' : 'Save Wi-Fi & Pair Chamber'}
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={handleStartSimulatedScan}
-                    className="btn-secondary w-full py-2.5 text-xs font-medium rounded-full"
-                  >
-                    Test with Virtual Hardware Simulator
-                  </button>
                 </div>
               </form>
             </div>
           )}
 
-          {/* TAB 3: MANUAL LAN IP REGISTRATION */}
+          {/* TAB 4: MANUAL LAN IP REGISTRATION */}
           {activeTab === 'manual' && (
             <div className="card p-6">
               <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[var(--color-outline-variant)]/40">

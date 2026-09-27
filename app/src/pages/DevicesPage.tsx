@@ -2,13 +2,10 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useDeviceStore } from '../store/deviceStore';
-import { isWebBluetoothSupported } from '../utils/ble';
-
 export default function DevicesPage() {
   const navigate = useNavigate();
   const { token } = useAuthStore();
   const { devices, latestReadings, fetchDevices } = useDeviceStore();
-  const bluetoothSupported = isWebBluetoothSupported();
 
   useEffect(() => {
     if (token) {
@@ -23,7 +20,7 @@ export default function DevicesPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--color-on-surface)]">FreshGuard Vaults</h1>
           <p className="text-xs text-[var(--color-on-surface-variant)] mt-0.5">
-            Manage paired chambers, BLE wireless provisioning, and hardware parameters
+            Manage paired chambers, Wi-Fi SoftAP & QR provisioning, and botanical parameters
           </p>
         </div>
 
@@ -31,25 +28,10 @@ export default function DevicesPage() {
           onClick={() => navigate('/app/devices/pair')}
           className="btn-primary py-2.5 px-5 rounded-full text-xs font-semibold flex items-center gap-2 self-start sm:self-auto shadow-sm"
         >
-          <span className="material-symbols-outlined text-base">bluetooth_searching</span>
-          Add a Box
+          <span className="material-symbols-outlined text-base">qr_code_scanner</span>
+          Add a Chamber
         </button>
       </div>
-
-      {/* Browser Support Advisory */}
-      {!bluetoothSupported && (
-        <div className="card p-4 border-l-4 border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 text-xs flex items-start gap-3">
-          <span className="material-symbols-outlined text-xl text-amber-600 flex-shrink-0 mt-0.5">
-            info
-          </span>
-          <div>
-            <p className="font-bold text-[var(--color-on-surface)]">Web Bluetooth Limitation</p>
-            <p className="text-[var(--color-on-surface-variant)] mt-0.5">
-              Direct BLE device discovery requires Chrome or Edge on Desktop or Android. On Safari / iOS, use our manual IP pairing mode or configure via desktop.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Devices List */}
       {devices.length === 0 ? (
