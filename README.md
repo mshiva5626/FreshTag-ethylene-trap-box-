@@ -16,7 +16,25 @@ The system features:
 
 ## 📐 Hardware Specifications & Pinout
 
-All data pins operate at 3.3V logic on standard ESP32-WROOM-32 / NodeMCU-32S boards:
+### ESP8266 NodeMCU / WeMos D1 Mini Pinout:
+Firmware: [`firmware/esp8266_freshguard/esp8266_freshguard.ino`](file:///c:/Users/mshiv/Downloads/frehtag/firmware/esp8266_freshguard/esp8266_freshguard.ino) or [`esp8266_freshguard/esp8266_freshguard.ino`](file:///c:/Users/mshiv/Downloads/frehtag/esp8266_freshguard/esp8266_freshguard.ino)
+
+| Component | ESP8266 Pin | GPIO | Mode | Signal / Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **DHT11 Sensor** | **D2** | **GPIO 4** | Bidirectional | Digital Temperature & Relative Humidity Data |
+| **MQ Gas Sensor** | **A0** | **ADC0** | Analog Input | 10-bit (0–1023) Ethylene / VOC gas level index |
+| **IR Safety Door Sensor** | **D5** | **GPIO 14** | `INPUT_PULLUP` | Optical beam interlock (`HIGH` when door open) |
+| **TTP223 Capacitive Touch** | **D7** | **GPIO 13** | `INPUT` | Bezel tap for White LED toggle / 20s hold to Reset Wi-Fi & restore Hotspot |
+| **Relay 1: Inlet Fan** | **D1** | **GPIO 5** | `OUTPUT` (Active `LOW`) | HEPA fresh air intake ventilation |
+| **Relay 2: Outlet Fan** | **D6** | **GPIO 12** | `OUTPUT` (Active `LOW`) | Catalytic ethylene purge / exhaust scrubber |
+| **Relay 3: Ultrasonic Humidifier** | **D0** | **GPIO 16** | `OUTPUT` (Active `LOW`) | 1.7MHz ultrasonic atomizer for moisture maintenance |
+| **Relay 4: Inspection LED Bar** | **D3** | **GPIO 0** | `OUTPUT` (Active `LOW`) | 5000K daylight inspection illumination |
+| **Relay 5: Antimicrobial Blue LED**| **D4** | **GPIO 2** | `OUTPUT` (Active `LOW`) | 450nm pathogen suppression & **Onboard Blue LED** (QR Pairing blinker) |
+
+---
+
+### ESP32-WROOM-32 / NodeMCU-32S Pinout:
+Firmware: [`firmware/esp32_freshguard/esp32_freshguard.ino`](file:///c:/Users/mshiv/Downloads/frehtag/firmware/esp32_freshguard/esp32_freshguard.ino)
 
 | Component | ESP32 GPIO | Mode | Signal / Description |
 | :--- | :--- | :--- | :--- |
@@ -28,7 +46,7 @@ All data pins operate at 3.3V logic on standard ESP32-WROOM-32 / NodeMCU-32S boa
 | **Relay 2: Outlet Fan** | **GPIO 17** | `OUTPUT` (Active `LOW`) | Catalytic ethylene purge / exhaust scrubber |
 | **Relay 3: Ultrasonic Humidifier** | **GPIO 5** | `OUTPUT` (Active `LOW`) | 1.7MHz ultrasonic atomizer for moisture maintenance |
 | **Relay 4: Inspection LED Bar** | **GPIO 19** | `OUTPUT` (Active `LOW`) | 5000K daylight inspection illumination |
-| **Relay 5: Antimicrobial Blue LED**| **GPIO 18** | `OUTPUT` (Active `LOW`) | 450nm pathogen suppression & BLE pairing blinker |
+| **Relay 5: Antimicrobial Blue LED**| **GPIO 18** | `OUTPUT` (Active `LOW`) | 450nm pathogen suppression & QR pairing blinker |
 
 ---
 
@@ -71,14 +89,36 @@ To protect the calibrated microclimate from room temperature and humidity disrup
 
 ---
 
-## 📲 Wi-Fi SoftAP & QR Code Fast Pairing
+## 🌐 Standalone IP-Address Web Dashboard (Direct Access)
 
-The chamber can be provisioned in seconds from any smartphone camera, tablet, or web browser without Bluetooth:
-- **SoftAP Hotspot**: `FreshGuard-Setup` (Open network, IP: `192.168.4.1`)
-- **Captive Portal**: Automatic setup popup on connection (iOS, Android, macOS, Windows)
-- **Auto-Join Wi-Fi QR**: `WIFI:S:FreshGuard-Setup;T:nopass;;` (Instantly recognized by iPhone & Android cameras)
-- **Persistent Storage**: Wi-Fi credentials and account binding (`Preferences` NVS) survive power outages and reboots indefinitely.
-- **Hardware Failsafe Reset**: Hold touch sensor (GPIO 13) for 7+ seconds to wipe credentials.
+The ESP8266 firmware operates 100% standalone with its own **built-in Zero-Dependency Web Dashboard** served directly from Flash ROM (no cloud pairing or internet required!):
+- **Direct LAN IP Access**: Navigate directly to `http://<ESP-IP>/` in any browser on your phone, tablet, or PC.
+- **Standalone Hotspot**: If not connected to Wi-Fi, it broadcasts `FreshTag-Vault` at `http://192.168.4.1/`.
+- **Live Auto-Refreshing Conditions (every 1.2s)**:
+  - 🌡️ **Temperature**: Real-time °C and °F with target range indicators.
+  - 💧 **Relative Humidity**: Real-time % RH with ultrasonic mist status.
+  - 🍃 **Ethylene & VOC Gas**: 0–1023 PPM index with dynamic color-coded safety bar.
+  - 🚪 **Door Status**: Open / Closed with safety interlock indicator and stabilization countdown.
+- **Hardware Actuator Relays**:
+  - Live ON/OFF toggle switches for Inlet Fan (D1), Outlet Scrubber (D6), Humidifier Mist (D0), Daylight LED (D3), and Blue LED (D4).
+  - Mode Switch: Toggle between **`AUTO` (Autonomous Climate Regulation)** and **`MANUAL` (Hardware Override)**.
+- **Botanical Threshold Configuration**:
+  - Adjust Min/Max Temperature, Min/Max Humidity, Ethylene Trigger, Gas Hysteresis, and Anti-Flicker Dwell Time directly from the browser with permanent EEPROM Flash storage.
+  - Door Interlock Software Toggle: Enable for production or Bypass for desktop prototyping.
+- **Integrated Wi-Fi Setup**: Scan nearby networks and save credentials directly from the web dashboard.
+
+---
+
+## 🛡️ Anti-Flicker & Relay Protection Engine
+
+To completely eliminate relay chattering and contact flickering:
+1. **Anti-Short-Cycling Dwell Protection**: Relays enforce a minimum 4-second dwell time before any state change is permitted, preventing rapid on/off switching.
+2. **Dual-Threshold Hysteresis**:
+   - **Gas Purge**: Purge fans energize when gas reaches `>= 230 PPM`, but will only shut off when gas drops below `200 PPM` (`gasThreshold - 30 PPM hysteresis`).
+   - **Humidity Regulation**: Ultrasonic mist turns on below `85% RH` and turns off only when reaching `92% RH`.
+3. **16-Sample ADC Oversampling + EMA Filtering**: The analog gas reading is smoothed via a 16-sample burst and Exponential Moving Average (`0.75 * previous + 0.25 * sample`) to eliminate electrical noise and RF spikes.
+4. **Controlled Loop Rate**: Automatic climate control evaluates at a disciplined 1.2-second interval instead of thousands of times per millisecond.
+5. **No Pairing Blinking on Relay Pins**: Blue LED / Relay pins are never toggled by pairing or connection loops.
 
 ---
 

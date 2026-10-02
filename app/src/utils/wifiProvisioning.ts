@@ -44,13 +44,16 @@ export interface ScannedNetwork {
   secure: boolean;
 }
 
+export const DEFAULT_WEBAPP_URL = 'https://freshguard-platform.onrender.com';
+
 export interface ParsedQrResult {
-  type: 'WIFI' | 'PORTAL_URL' | 'PAIRING_PAYLOAD' | 'RAW';
+  type: 'WIFI' | 'PORTAL_URL' | 'WEBAPP_PAIRING' | 'PAIRING_PAYLOAD' | 'RAW';
   ssid?: string;
   password?: string;
   deviceId?: string;
   accountId?: string;
   gatewayIp?: string;
+  webAppUrl?: string;
   raw: string;
 }
 
@@ -67,7 +70,28 @@ export function getWifiQrString(ssid = PROVISIONING_CONFIG.AP_SSID, pass = PROVI
 }
 
 /**
- * Generate direct URL QR code string pointing to ESP32 setup web portal
+ * Generate direct URL QR code string pointing to the Main FreshTag WebApp.
+ * Scanning with any smartphone camera instantly opens the FreshTag platform
+ * directly to the pairing screen prefilled with the chamber's device ID.
+ */
+export function getWebAppPairingQrString(
+  deviceId: string = PROVISIONING_CONFIG.DEFAULT_DEVICE_ID,
+  accountId: string = 'mshiva5626',
+  baseUrl?: string
+): string {
+  let host = baseUrl;
+  if (!host) {
+    if (typeof window !== 'undefined' && window.location && window.location.origin) {
+      host = window.location.origin;
+    } else {
+      host = DEFAULT_WEBAPP_URL;
+    }
+  }
+  return `${host}/app/devices/pair?device=${encodeURIComponent(deviceId)}&account=${encodeURIComponent(accountId)}`;
+}
+
+/**
+ * Generate direct URL QR code string pointing to ESP32 / ESP8266 setup web portal
  */
 export function getSetupUrlQrString(accountId: string, deviceId: string, ip = PROVISIONING_CONFIG.DEFAULT_AP_IP): string {
   return `http://${ip}/setup?account=${encodeURIComponent(accountId)}&device=${encodeURIComponent(deviceId)}`;
@@ -109,15 +133,21 @@ export function parseQrCodeData(data: string): ParsedQrResult {
     };
   }
 
-  // 2. HTTP Portal URL (http://192.168.4.1/setup?account=...&device=...)
+  // 2. HTTP Portal URL or Main FreshTag WebApp Pairing URL
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
     try {
       const url = new URL(trimmed);
       const account = url.searchParams.get('account') || undefined;
       const device = url.searchParams.get('device') || PROVISIONING_CONFIG.DEFAULT_DEVICE_ID;
+      const isWebApp = url.pathname.includes('/pair') || 
+                       url.pathname.includes('/devices') || 
+                       url.hostname.includes('onrender.com') ||
+                       (typeof window !== 'undefined' && window.location && url.hostname === window.location.hostname);
+      
       return {
-        type: 'PORTAL_URL',
-        gatewayIp: url.hostname,
+        type: isWebApp ? 'WEBAPP_PAIRING' : 'PORTAL_URL',
+        gatewayIp: isWebApp ? PROVISIONING_CONFIG.DEFAULT_AP_IP : url.hostname,
+        webAppUrl: trimmed,
         deviceId: device,
         accountId: account,
         raw: trimmed,

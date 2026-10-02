@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useDeviceStore } from '../store/deviceStore';
+import { getBackendUrl } from '../utils/backendUrl';
 import {
   PROVISIONING_CONFIG,
+  DEFAULT_WEBAPP_URL,
   getWifiQrString,
+  getWebAppPairingQrString,
   getSetupUrlQrString,
   generateQrDataUrl,
   sendWifiCredentials,
@@ -21,6 +24,7 @@ type WizardStep = 'select' | 'configuring' | 'success';
 
 export default function PairingWizardPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, token } = useAuthStore();
   const { registerDevice } = useDeviceStore();
 
@@ -42,7 +46,9 @@ export default function PairingWizardPage() {
   const [lastScannedResult, setLastScannedResult] = useState<ParsedQrResult | null>(null);
 
   // QR Code Data URLs (for display & sticker printing)
+  const [webAppQrUrl, setWebAppQrUrl] = useState<string>('');
   const [wifiQrUrl, setWifiQrUrl] = useState<string>('');
+  const [displayQrMode, setDisplayQrMode] = useState<'webapp' | 'wifi'>('webapp');
   const [showPrintModal, setShowPrintModal] = useState<boolean>(false);
 
   // Form Inputs
@@ -51,7 +57,8 @@ export default function PairingWizardPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [deviceId, setDeviceId] = useState(PROVISIONING_CONFIG.DEFAULT_DEVICE_ID);
   const [nickname, setNickname] = useState('Botanical Vault Alpha');
-  const [serverUrl, setServerUrl] = useState('http://192.168.1.100:8080/api/telemetry');
+  // Default to main FreshTag webapp telemetry endpoint dynamically instead of hardcoded IP
+  const [serverUrl, setServerUrl] = useState(`${getBackendUrl()}/api/telemetry`);
   const [chamberIp, setChamberIp] = useState(PROVISIONING_CONFIG.DEFAULT_AP_IP);
 
   // Scanned Visible Networks
@@ -70,10 +77,35 @@ export default function PairingWizardPage() {
   const [discoveredIp, setDiscoveredIp] = useState<string>('');
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
 
-  // Generate QR codes for the display tab
+  // Auto-detect chamber parameters from URL query parameters (e.g., when scanned via phone camera)
+  useEffect(() => {
+    const urlDev = searchParams.get('device');
+    const urlAcc = searchParams.get('account');
+    if (urlDev) {
+      setDeviceId(urlDev);
+      setManualDeviceId(urlDev);
+      setNickname(`Vault ${urlDev}`);
+      setLastScannedResult({
+        type: 'WEBAPP_PAIRING',
+        deviceId: urlDev,
+        accountId: urlAcc || accountId,
+        gatewayIp: PROVISIONING_CONFIG.DEFAULT_AP_IP,
+        webAppUrl: window.location.href,
+        raw: window.location.href,
+      });
+      // Guide user straight to Wi-Fi provisioning for this detected device
+      setActiveTab('direct');
+    }
+  }, [searchParams, accountId]);
+
+  // Generate QR codes for the display tab (Main WebApp pairing QR and local Wi-Fi QR)
   useEffect(() => {
     async function makeQrCodes() {
       try {
+        const webAppPairStr = getWebAppPairingQrString(deviceId, accountId);
+        const wAppUrl = await generateQrDataUrl(webAppPairStr);
+        setWebAppQrUrl(wAppUrl);
+
         const wifiStr = getWifiQrString(PROVISIONING_CONFIG.AP_SSID, PROVISIONING_CONFIG.AP_PASS);
         const wUrl = await generateQrDataUrl(wifiStr);
         setWifiQrUrl(wUrl);
@@ -186,8 +218,8 @@ export default function PairingWizardPage() {
     setIsDemoMode(true);
     setErrorMsg(null);
 
-    // Simulate scanning the Wi-Fi QR code
-    const testQrData = `WIFI:S:FreshGuard-Setup;T:nopass;;`;
+    // Simulate scanning the Main FreshTag WebApp QR code
+    const testQrData = getWebAppPairingQrString(deviceId || 'SF-001', accountId);
     handleParsedQrPayload(testQrData);
   };
 
@@ -575,62 +607,141 @@ export default function PairingWizardPage() {
                 <div className="w-full max-w-sm p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-left text-xs space-y-1.5 animate-fadeIn">
                   <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
                     <span className="material-symbols-outlined text-sm">check_circle</span>
-                    QR Decoded Successfully!
+                    {lastScannedResult.type === 'WEBAPP_PAIRING'
+                      ? 'Main WebApp QR Decoded Successfully!'
+                      : 'QR Decoded Successfully!'}
                   </div>
-                  <p className="text-[11px] text-[var(--color-on-surface)]">
-                    Detected Payload: <code>{lastScannedResult.raw}</code>
+                  <p className="text-[11px] text-[var(--color-on-surface)] break-all">
+                    Target: <code>{lastScannedResult.raw}</code>
                   </p>
                   <p className="text-[11px] text-[var(--color-on-surface-variant)]">
-                    Device: <strong>{lastScannedResult.deviceId || 'SF-001'}</strong> | Wi-Fi: <strong>{lastScannedResult.ssid || 'FreshGuard-Setup'}</strong>
+                    Device: <strong>{lastScannedResult.deviceId || 'SF-001'}</strong> | Account: <strong>{lastScannedResult.accountId || accountId}</strong>
                   </p>
+                  <div className="text-[10px] text-emerald-700 dark:text-emerald-300 flex items-center gap-1 font-medium mt-1">
+                    <span className="material-symbols-outlined text-xs">memory</span>
+                    Target Hardware: ESP8266 & ESP32 Produce Vault
+                  </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* TAB 2: SHOW WI-FI QR CODE (FOR PHONE CAMERAS) */}
+          {/* TAB 2: QR PAIRING CODE (FOR PHONE CAMERAS & STICKERS) */}
           {activeTab === 'display-qr' && (
             <div className="card p-6 flex flex-col items-center text-center gap-6">
               <div>
                 <h2 className="text-xl font-bold text-[var(--color-on-surface)] mb-2">
-                  Chamber Setup QR Code
+                  Chamber Pairing QR Code
                 </h2>
                 <p className="text-xs text-[var(--color-on-surface-variant)] max-w-md mx-auto leading-relaxed">
-                  Point any smartphone camera (iPhone Camera or Android Lens) at this QR code to instantly join the chamber's setup Wi-Fi.
+                  Scan with any smartphone camera to launch the FreshTag WebApp directly, or switch to Wi-Fi hotspot auto-connect.
                 </p>
+              </div>
+
+              {/* QR Mode Switcher: WebApp vs SoftAP Wi-Fi */}
+              <div className="flex rounded-xl bg-[var(--color-surface-container)] p-1 border border-[var(--color-outline-variant)]/30 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setDisplayQrMode('webapp')}
+                  className={`py-1.5 px-3.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all ${
+                    displayQrMode === 'webapp'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-[var(--color-on-surface-variant)] hover:text-[var(--color-on-surface)]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-sm">language</span>
+                  <span>Main WebApp QR (Recommended)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDisplayQrMode('wifi')}
+                  className={`py-1.5 px-3.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all ${
+                    displayQrMode === 'wifi'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-[var(--color-on-surface-variant)] hover:text-[var(--color-on-surface)]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-sm">wifi</span>
+                  <span>Wi-Fi Hotspot QR</span>
+                </button>
               </div>
 
               {/* QR Code Display Container */}
               <div className="p-4 bg-white rounded-3xl shadow-xl border-4 border-emerald-500/30 flex flex-col items-center">
-                {wifiQrUrl ? (
-                  <img
-                    src={wifiQrUrl}
-                    alt="FreshGuard Wi-Fi Auto-Connect QR Code"
-                    className="w-56 h-56 rounded-xl"
-                  />
+                {displayQrMode === 'webapp' ? (
+                  webAppQrUrl ? (
+                    <img
+                      src={webAppQrUrl}
+                      alt="Main FreshTag WebApp QR Code"
+                      className="w-56 h-56 rounded-xl"
+                    />
+                  ) : (
+                    <div className="w-56 h-56 flex items-center justify-center text-slate-400">
+                      <span className="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+                    </div>
+                  )
                 ) : (
-                  <div className="w-56 h-56 flex items-center justify-center text-slate-400">
-                    <span className="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
-                  </div>
+                  wifiQrUrl ? (
+                    <img
+                      src={wifiQrUrl}
+                      alt="FreshGuard Wi-Fi Auto-Connect QR Code"
+                      className="w-56 h-56 rounded-xl"
+                    />
+                  ) : (
+                    <div className="w-56 h-56 flex items-center justify-center text-slate-400">
+                      <span className="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+                    </div>
+                  )
                 )}
+
                 <div className="mt-3 text-center">
-                  <span className="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-full">
-                    SSID: {PROVISIONING_CONFIG.AP_SSID} (Open)
-                  </span>
+                  {displayQrMode === 'webapp' ? (
+                    <span className="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-full">
+                      🚀 FreshTag WebApp: {deviceId}
+                    </span>
+                  ) : (
+                    <span className="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-full">
+                      SSID: {PROVISIONING_CONFIG.AP_SSID} (Open)
+                    </span>
+                  )}
                 </div>
+              </div>
+
+              <div className="text-xs text-[var(--color-on-surface-variant)] max-w-sm">
+                {displayQrMode === 'webapp' ? (
+                  <p>
+                    Camera auto-detects <strong>FreshTag WebApp</strong> and binds chamber <code>{deviceId}</code> to account <code>{accountId}</code>. No manual IP entry needed!
+                  </p>
+                ) : (
+                  <p>
+                    Connects your phone directly to the ESP8266 / ESP32 setup hotspot (<code>FreshGuard-Setup</code>) to configure Wi-Fi credentials.
+                  </p>
+                )}
               </div>
 
               {/* Action Buttons */}
               <div className="w-full flex flex-col sm:flex-row gap-3">
-                <a
-                  href={`http://${PROVISIONING_CONFIG.DEFAULT_AP_IP}/`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-primary flex-1 py-3 text-xs font-semibold rounded-full flex items-center justify-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-sm">open_in_browser</span>
-                  Open Chamber Portal (192.168.4.1)
-                </a>
+                {displayQrMode === 'webapp' ? (
+                  <a
+                    href={getWebAppPairingQrString(deviceId, accountId)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-primary flex-1 py-3 text-xs font-semibold rounded-full flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-sm">open_in_browser</span>
+                    Open WebApp Pairing Link
+                  </a>
+                ) : (
+                  <a
+                    href={`http://${PROVISIONING_CONFIG.DEFAULT_AP_IP}/`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-primary flex-1 py-3 text-xs font-semibold rounded-full flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-sm">open_in_browser</span>
+                    Open Chamber Portal (192.168.4.1)
+                  </a>
+                )}
 
                 <button
                   type="button"
@@ -995,22 +1106,22 @@ export default function PairingWizardPage() {
               </div>
               <h3 className="text-xl font-bold">Hardware QR Sticker</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Stick this onto your ESP32 chamber for instant setup & pairing from any phone camera.
+                Stick this onto your ESP8266 or ESP32 chamber for instant setup & pairing via any smartphone camera.
               </p>
             </div>
 
             <div className="p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center">
-              {wifiQrUrl && (
+              {(webAppQrUrl || wifiQrUrl) && (
                 <img
-                  src={wifiQrUrl}
+                  src={displayQrMode === 'webapp' ? (webAppQrUrl || wifiQrUrl) : (wifiQrUrl || webAppQrUrl)}
                   alt="Chamber QR Code"
                   className="w-48 h-48 rounded-xl"
                 />
               )}
               <div className="mt-3 text-center">
-                <p className="text-sm font-bold text-slate-800">FreshGuard Botanical Vault</p>
-                <p className="text-xs font-mono text-slate-600">ID: {deviceId} | Setup: {PROVISIONING_CONFIG.AP_SSID}</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Scan to connect Wi-Fi</p>
+                <p className="text-sm font-bold text-slate-800">FreshTag Botanical Vault</p>
+                <p className="text-xs font-mono text-slate-600">ID: {deviceId} | Hardware: ESP8266 / ESP32</p>
+                <p className="text-[11px] text-emerald-600 font-medium mt-0.5">Scan to open FreshTag WebApp</p>
               </div>
             </div>
 

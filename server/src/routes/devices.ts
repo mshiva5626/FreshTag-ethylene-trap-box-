@@ -12,9 +12,7 @@ router.get('/', authenticateJWT, async (req: AuthRequest, res: Response): Promis
     const accountId = req.user!.account_id;
 
     const devicesRes = await query(
-      `SELECT device_id, account_id, nickname, 
-              temp_min, temp_max, humidity_min, humidity_max, gas_threshold,
-              created_at, updated_at
+      `SELECT *
        FROM devices
        WHERE account_id = $1
        ORDER BY created_at DESC`,
@@ -39,6 +37,17 @@ router.get('/', authenticateJWT, async (req: AuthRequest, res: Response): Promis
             humidity_min: parseFloat(device.humidity_min),
             humidity_max: parseFloat(device.humidity_max),
             gas_threshold: device.gas_threshold,
+          },
+          calibration: {
+            temp_offset: parseFloat(device.temp_offset ?? 0.0),
+            humidity_offset: parseFloat(device.humidity_offset ?? 0.0),
+            gas_scale: parseFloat(device.gas_scale ?? 1.0),
+            gas_offset: parseInt(device.gas_offset ?? 0, 10),
+            override_mode: Boolean(device.override_mode),
+            custom_temp: device.custom_temp !== null && device.custom_temp !== undefined ? parseFloat(device.custom_temp) : null,
+            custom_humidity: device.custom_humidity !== null && device.custom_humidity !== undefined ? parseFloat(device.custom_humidity) : null,
+            custom_gas: device.custom_gas !== null && device.custom_gas !== undefined ? parseInt(device.custom_gas, 10) : null,
+            reset_pending: Boolean(device.reset_pending),
           },
           latest_reading: latestReadingRes.rows[0] || null,
         };
@@ -274,6 +283,151 @@ router.delete('/:deviceId', authenticateJWT, async (req: AuthRequest, res: Respo
     });
   } catch (err: any) {
     console.error('[Device Unpair Error]:', err);
+    res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// GET /api/devices/:deviceId/calibration: Fetch device calibration
+// -------------------------------------------------------------
+router.get('/:deviceId/calibration', authenticateJWT, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { deviceId } = req.params;
+    const accountId = req.user!.account_id;
+
+    const deviceCheck = await query(
+      'SELECT * FROM devices WHERE device_id = $1 AND account_id = $2',
+      [deviceId, accountId]
+    );
+
+    if (deviceCheck.rows.length === 0) {
+      res.status(404).json({ error: 'Not Found', message: 'Device not found or not owned by your account' });
+      return;
+    }
+
+    const dev = deviceCheck.rows[0];
+    res.status(200).json({
+      device_id: deviceId,
+      calibration: {
+        temp_offset: parseFloat(dev.temp_offset ?? 0.0),
+        humidity_offset: parseFloat(dev.humidity_offset ?? 0.0),
+        gas_scale: parseFloat(dev.gas_scale ?? 1.0),
+        gas_offset: parseInt(dev.gas_offset ?? 0, 10),
+        override_mode: Boolean(dev.override_mode),
+        custom_temp: dev.custom_temp !== null && dev.custom_temp !== undefined ? parseFloat(dev.custom_temp) : null,
+        custom_humidity: dev.custom_humidity !== null && dev.custom_humidity !== undefined ? parseFloat(dev.custom_humidity) : null,
+        custom_gas: dev.custom_gas !== null && dev.custom_gas !== undefined ? parseInt(dev.custom_gas, 10) : null,
+        reset_pending: Boolean(dev.reset_pending),
+      },
+    });
+  } catch (err: any) {
+    console.error('[Device Calibration Fetch Error]:', err);
+    res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// PUT /api/devices/:deviceId/calibration: Update sensor calibration
+// -------------------------------------------------------------
+router.put('/:deviceId/calibration', authenticateJWT, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { deviceId } = req.params;
+    const accountId = req.user!.account_id;
+    const {
+      temp_offset,
+      humidity_offset,
+      gas_scale,
+      gas_offset,
+      override_mode,
+      custom_temp,
+      custom_humidity,
+      custom_gas,
+    } = req.body;
+
+    const deviceCheck = await query(
+      'SELECT * FROM devices WHERE device_id = $1 AND account_id = $2',
+      [deviceId, accountId]
+    );
+
+    if (deviceCheck.rows.length === 0) {
+      res.status(404).json({ error: 'Not Found', message: 'Device not found or not owned by your account' });
+      return;
+    }
+
+    const current = deviceCheck.rows[0];
+
+    const newTempOffset = temp_offset !== undefined ? parseFloat(temp_offset) : current.temp_offset;
+    const newHumOffset = humidity_offset !== undefined ? parseFloat(humidity_offset) : current.humidity_offset;
+    const newGasScale = gas_scale !== undefined ? parseFloat(gas_scale) : current.gas_scale;
+    const newGasOffset = gas_offset !== undefined ? parseInt(gas_offset, 10) : current.gas_offset;
+    const newOverrideMode = override_mode !== undefined ? Boolean(override_mode) : current.override_mode;
+    const newCustomTemp = custom_temp !== undefined ? (custom_temp === null ? null : parseFloat(custom_temp)) : current.custom_temp;
+    const newCustomHum = custom_humidity !== undefined ? (custom_humidity === null ? null : parseFloat(custom_humidity)) : current.custom_humidity;
+    const newCustomGas = custom_gas !== undefined ? (custom_gas === null ? null : parseInt(custom_gas, 10)) : current.custom_gas;
+
+    const result = await query(
+      `UPDATE devices
+       SET temp_offset = $1, humidity_offset = $2, gas_scale = $3, gas_offset = $4,
+           override_mode = $5, custom_temp = $6, custom_humidity = $7, custom_gas = $8,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE device_id = $9 AND account_id = $10
+       RETURNING *`,
+      [newTempOffset, newHumOffset, newGasScale, newGasOffset, newOverrideMode, newCustomTemp, newCustomHum, newCustomGas, deviceId, accountId]
+    );
+
+    const dev = result.rows[0];
+    res.status(200).json({
+      message: 'Calibration settings updated successfully',
+      device_id: deviceId,
+      calibration: {
+        temp_offset: parseFloat(dev.temp_offset ?? 0.0),
+        humidity_offset: parseFloat(dev.humidity_offset ?? 0.0),
+        gas_scale: parseFloat(dev.gas_scale ?? 1.0),
+        gas_offset: parseInt(dev.gas_offset ?? 0, 10),
+        override_mode: Boolean(dev.override_mode),
+        custom_temp: dev.custom_temp !== null && dev.custom_temp !== undefined ? parseFloat(dev.custom_temp) : null,
+        custom_humidity: dev.custom_humidity !== null && dev.custom_humidity !== undefined ? parseFloat(dev.custom_humidity) : null,
+        custom_gas: dev.custom_gas !== null && dev.custom_gas !== undefined ? parseInt(dev.custom_gas, 10) : null,
+        reset_pending: Boolean(dev.reset_pending),
+      },
+    });
+  } catch (err: any) {
+    console.error('[Device Calibration Update Error]:', err);
+    res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// POST /api/devices/:deviceId/reset: Queue remote factory reset / pairing mode
+// -------------------------------------------------------------
+router.post('/:deviceId/reset', authenticateJWT, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { deviceId } = req.params;
+    const accountId = req.user!.account_id;
+
+    const deviceCheck = await query(
+      'SELECT * FROM devices WHERE device_id = $1 AND account_id = $2',
+      [deviceId, accountId]
+    );
+
+    if (deviceCheck.rows.length === 0) {
+      res.status(404).json({ error: 'Not Found', message: 'Device not found or not owned by your account' });
+      return;
+    }
+
+    await query(
+      'UPDATE devices SET reset_pending = true, updated_at = CURRENT_TIMESTAMP WHERE device_id = $1 AND account_id = $2',
+      [deviceId, accountId]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Remote reset command queued for device ${deviceId}. The chamber will wipe its credentials and enter pairing mode on next telemetry transmission.`,
+      device_id: deviceId,
+      reset_pending: true,
+    });
+  } catch (err: any) {
+    console.error('[Device Remote Reset Error]:', err);
     res.status(500).json({ error: 'Internal Server Error', message: err.message });
   }
 });

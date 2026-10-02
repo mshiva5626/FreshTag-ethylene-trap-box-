@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { FreshGuardLogo } from '../components/FreshGuardLogo'
 
 export default function SplashScreen() {
   const { token, hasSeenOnboarding } = useAuthStore()
@@ -29,9 +30,9 @@ export default function SplashScreen() {
 
       {/* Logo card */}
       <div className="relative z-10 flex flex-col items-center gap-6 animate-[fadeUp_0.6s_ease-out_both]">
-        <div className="relative">
-          <div className="w-24 h-24 rounded-3xl overflow-hidden shadow-2xl border-2 border-white bg-white shrink-0 p-1">
-            <img src="/assets/fruits/apple.jpg" alt="FreshGuard" className="w-full h-full object-cover rounded-2xl" />
+        <div className="relative group">
+          <div className="relative rounded-[30px] p-1.5 bg-gradient-to-br from-white/60 via-white/20 to-transparent shadow-[0_20px_50px_rgba(24,63,39,0.35)] shrink-0">
+            <FreshGuardLogo size={96} />
           </div>
           {/* Green pulse dot */}
           <div className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--color-secondary)] rounded-full shadow">

@@ -103,7 +103,7 @@ String systemMode            = "AUTO"; // "AUTO" or "MANUAL"
 
 String deviceId              = "SF-001";
 String accountId             = "mshiva5626"; // Bound user account
-String serverHost            = "http://192.168.1.100:8080/api/telemetry";
+String serverHost            = "https://freshguard-platform.onrender.com/api/telemetry";
 
 // In-Memory Stored Credentials (prevents repetitive NVS flash reads in loop)
 String savedSsid             = "";
@@ -276,7 +276,7 @@ const char SETUP_HTML[] PROGMEM = R"rawliteral(
 
       <div class="form-group">
         <label for="server">Cloud Telemetry URL</label>
-        <input type="text" id="server" name="server" value="http://192.168.1.100:8080/api/telemetry" required>
+        <input type="text" id="server" name="server" value="https://freshguard-platform.onrender.com/api/telemetry" required>
       </div>
 
       <button type="submit" class="btn" id="submitBtn">Connect Chamber to Wi-Fi</button>
@@ -1143,17 +1143,18 @@ void executeAutoClimateControl() {
     setRelay(RELAY_HUMIDIFIER, false);
   }
 
-  // 2. Gas / Ripening Control (Ethylene Scrubber Extraction)
-  // NOTE: Active cooler/chiller is not integrated in this hardware build.
+  // 2. Gas / Ripening Control with Hysteresis (Anti-Flicker Protection)
   // Fans are dedicated to catalytic ethylene scrubbing when VOCs rise.
-  // Temperature is passively measured via DHT22 for telemetry and alerts.
-  if (gasSensorExists && gasLevel > gasThresholdPpm) {
+  int clearThreshold = gasThresholdPpm - 30;
+  if (clearThreshold < 40) clearThreshold = 40;
+
+  if (gasSensorExists && !inletFanState && gasLevel >= gasThresholdPpm) {
     inletFanState = true;
     outletFanState = true;
     setRelay(RELAY_INLET_FAN, true);
     setRelay(RELAY_OUTLET_FAN, true);
     currentState = STATE_ALERT;
-  } else {
+  } else if (gasSensorExists && inletFanState && gasLevel < clearThreshold) {
     inletFanState = false;
     outletFanState = false;
     setRelay(RELAY_INLET_FAN, false);
@@ -1161,6 +1162,11 @@ void executeAutoClimateControl() {
     if (currentState == STATE_ALERT) {
       currentState = STATE_NORMAL;
     }
+  } else if (!gasSensorExists && inletFanState) {
+    inletFanState = false;
+    outletFanState = false;
+    setRelay(RELAY_INLET_FAN, false);
+    setRelay(RELAY_OUTLET_FAN, false);
   }
 }
 

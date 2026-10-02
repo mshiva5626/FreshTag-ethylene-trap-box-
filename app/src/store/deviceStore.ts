@@ -33,11 +33,24 @@ export interface DeviceThresholds {
   gas_threshold: number;
 }
 
+export interface DeviceCalibration {
+  temp_offset: number;
+  humidity_offset: number;
+  gas_scale: number;
+  gas_offset: number;
+  override_mode: boolean;
+  custom_temp: number | null;
+  custom_humidity: number | null;
+  custom_gas: number | null;
+  reset_pending?: boolean;
+}
+
 export interface DeviceItem {
   device_id: string;
   account_id: string;
   nickname: string;
   thresholds: DeviceThresholds;
+  calibration?: DeviceCalibration;
   granule_interval_days?: number;
   granule_last_replaced?: string;
   latest_reading?: TelemetryReading | null;
@@ -61,6 +74,8 @@ interface DeviceState {
   registerDevice: (token: string, payload: { device_id: string; nickname?: string; localIp?: string }) => Promise<void>;
   updateThresholds: (token: string, deviceId: string, thresholds: Partial<DeviceThresholds> & { nickname?: string; granule_interval_days?: number; granule_last_replaced?: string }) => Promise<void>;
   unpairDevice: (token: string, deviceId: string) => Promise<{ localWiped: boolean }>;
+  updateCalibration: (token: string, deviceId: string, calibration: Partial<DeviceCalibration>) => Promise<void>;
+  resetDeviceToPairing: (token: string, deviceId: string) => Promise<{ success: boolean; message: string }>;
   setLocalIp: (deviceId: string, ip: string) => void;
   checkLocalReachability: (deviceId: string) => Promise<boolean>;
   sendLocalControl: (deviceId: string, payload: {
@@ -267,6 +282,62 @@ export const useDeviceStore = create<DeviceState>()(
 
         await get().fetchDevices(token);
         return { localWiped };
+      },
+
+      updateCalibration: async (token: string, deviceId: string, calibration: Partial<DeviceCalibration>) => {
+        const res = await fetch(`${BACKEND_URL}/api/devices/${deviceId}/calibration`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(calibration),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || 'Failed to update calibration settings');
+        }
+        await get().fetchDevices(token);
+      },
+
+      resetDeviceToPairing: async (token: string, deviceId: string) => {
+        // Attempt direct local IP reset if on same WiFi
+        const ip = get().localIps[deviceId];
+        if (ip) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 1500);
+            await fetch(`http://${ip}/reset`, {
+              method: 'POST',
+              signal: controller.signal,
+              mode: 'cors',
+            });
+            clearTimeout(timeoutId);
+          } catch {
+            // Offline or remote, will be caught via cloud queue
+          }
+        }
+
+        // Call backend to queue remote reset for the chamber
+        const res = await fetch(`${BACKEND_URL}/api/devices/${deviceId}/reset`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || 'Failed to queue remote reset command');
+        }
+
+        const data = await res.json();
+        await get().fetchDevices(token);
+        return {
+          success: true,
+          message: data.message || `Chamber ${deviceId} commanded to reset into pairing mode.`,
+        };
       },
 
       setLocalIp: (deviceId: string, ip: string) => {

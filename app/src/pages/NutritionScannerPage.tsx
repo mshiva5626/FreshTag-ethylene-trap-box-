@@ -9,6 +9,7 @@ import {
   SpecimenData,
 } from '../services/geminiNutrition';
 import { getFruitRealImage } from '../utils/fruitImages';
+import { FreshGuardLogo } from '../components/FreshGuardLogo';
 
 const INITIAL_SPECIMENS: SpecimenData[] = [
   {
@@ -412,9 +413,7 @@ export default function NutritionScannerPage() {
       {/* ── Top Header with Warm Location & Spectrometry Pill ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-11 h-11 rounded-2xl overflow-hidden border border-[#fbd3b9] shadow-sm shrink-0 bg-[#fef2e9]">
-            <img src="/assets/fruits/apple.jpg" alt="Botanical AI" className="w-full h-full object-cover" />
-          </div>
+          <FreshGuardLogo size={44} className="shadow-xs" />
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-bold text-[#1e241c] leading-tight">

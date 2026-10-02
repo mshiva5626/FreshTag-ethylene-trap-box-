@@ -157,4 +157,59 @@ describe('FreshGuard Device Management REST Endpoints', () => {
     const found = listRes.body.devices.some((d: any) => d.device_id === 'SF-TEMP-UNPAIR');
     expect(found).toBe(false);
   });
+
+  it('8. should update and fetch device sensor calibration (PUT & GET)', async () => {
+    const putRes = await request(app)
+      .put('/api/devices/SF-001/calibration')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        temp_offset: -1.5,
+        humidity_offset: 2.5,
+        gas_scale: 1.2,
+        override_mode: true,
+        custom_temp: 3.8,
+        custom_humidity: 94.0,
+        custom_gas: 180,
+      })
+      .expect(200);
+
+    expect(putRes.body.calibration.temp_offset).toBe(-1.5);
+    expect(putRes.body.calibration.humidity_offset).toBe(2.5);
+    expect(putRes.body.calibration.gas_scale).toBe(1.2);
+    expect(putRes.body.calibration.override_mode).toBe(true);
+    expect(putRes.body.calibration.custom_temp).toBe(3.8);
+
+    const getRes = await request(app)
+      .get('/api/devices/SF-001/calibration')
+      .set('Authorization', `Bearer ${authToken}`)
+      .expect(200);
+
+    expect(getRes.body.calibration.temp_offset).toBe(-1.5);
+    expect(getRes.body.calibration.override_mode).toBe(true);
+  });
+
+  it('9. should queue remote factory reset / pairing mode (POST /api/devices/:deviceId/reset)', async () => {
+    const res = await request(app)
+      .post('/api/devices/SF-001/reset')
+      .set('Authorization', `Bearer ${authToken}`)
+      .expect(200);
+
+    expect(res.body.success).toBe(true);
+    expect(res.body.reset_pending).toBe(true);
+
+    // Verify reset_pending is reflected in telemetry response
+    const telemRes = await request(app)
+      .post('/api/telemetry')
+      .send({
+        device_id: 'SF-001',
+        account_id: 'mshiva5626',
+        temperature: 2.0,
+        humidity: 90.0,
+        gas_level: 150,
+      })
+      .expect(200);
+
+    expect(telemRes.body.command).toBe('RESET');
+    expect(telemRes.body.reset).toBe(true);
+  });
 });

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { FreshGuardLogo } from './FreshGuardLogo';
 
 export const ALL_NAV_ITEMS = [
   { to: '/app/dashboard', icon: 'dashboard', label: 'Dashboard', shortLabel: 'Vaults', desc: 'Active chambers & conditions' },
@@ -53,9 +54,7 @@ export default function AppShell() {
       <aside className="hidden lg:flex flex-col w-64 min-h-screen bg-white/80 backdrop-blur-md border-r border-[#e1e7dc] py-6 px-4 z-20">
         {/* Brand */}
         <div className="flex items-center gap-3 px-2 mb-7">
-          <div className="w-10 h-10 rounded-2xl overflow-hidden border border-[#fbd3b9] shadow-[0_6px_16px_rgba(230,106,38,0.25)] shrink-0 bg-[#ffede0]">
-            <img src="/assets/fruits/apple.jpg" alt="FreshGuard" className="w-full h-full object-cover" />
-          </div>
+          <FreshGuardLogo size={40} className="shadow-[0_4px_14px_rgba(24,63,39,0.22)]" />
           <div>
             <p className="font-extrabold text-base leading-tight text-[#1e241c] tracking-tight">FreshGuard</p>
             <p className="text-[11px] text-[#596155] font-medium">Botanical Precision Storage</p>
@@ -133,9 +132,7 @@ export default function AppShell() {
             >
               <span className="material-symbols-outlined text-2xl">menu</span>
             </button>
-            <div className="w-8 h-8 rounded-xl overflow-hidden border border-[#fbd3b9] shadow-xs shrink-0 bg-[#ffede0]">
-              <img src="/assets/fruits/apple.jpg" alt="FreshGuard" className="w-full h-full object-cover" />
-            </div>
+            <FreshGuardLogo size={32} className="shadow-xs" />
             <div>
               <span className="font-extrabold text-sm text-[#1e241c] tracking-tight block leading-none">FreshGuard</span>
               <span className="text-[10px] text-[#596155] font-medium leading-tight">Storage Chamber</span>
@@ -337,9 +334,7 @@ export default function AppShell() {
             {/* Drawer Header */}
             <div className="flex items-center justify-between p-4 border-b border-[#e1e7dc] bg-[#fbfdf9]">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl overflow-hidden border border-[#fbd3b9] shadow-xs shrink-0 bg-[#ffede0]">
-                  <img src="/assets/fruits/apple.jpg" alt="FreshGuard" className="w-full h-full object-cover" />
-                </div>
+                <FreshGuardLogo size={38} className="shadow-xs" />
                 <div>
                   <p className="font-extrabold text-base leading-tight text-[#1e241c] tracking-tight">FreshGuard</p>
                   <p className="text-[11px] text-[#596155] font-medium">Complete Navigation</p>

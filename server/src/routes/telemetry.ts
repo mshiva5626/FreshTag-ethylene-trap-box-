@@ -87,16 +87,76 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     const white_led = body.white_led === 'ON' ? 'ON' : 'OFF';
 
     // Ensure device exists in devices table
-    const devCheck = await query('SELECT device_id FROM devices WHERE device_id = $1', [device_id.trim()]);
+    let devCheck = await query('SELECT * FROM devices WHERE device_id = $1', [device_id.trim()]);
     if (devCheck.rows.length === 0) {
       await query(
         `INSERT INTO devices (device_id, account_id, nickname)
          VALUES ($1, $2, $3)`,
         [device_id.trim(), account_id.trim(), `FreshGuard Vault (${device_id.trim()})`]
       );
+      devCheck = await query('SELECT * FROM devices WHERE device_id = $1', [device_id.trim()]);
     }
 
-    // Insert telemetry reading
+    const device = devCheck.rows[0];
+
+    // 1. Remote Reset Check: If user requested reset from website, notify ESP8266 to wipe and enter pairing mode
+    if (device.reset_pending) {
+      await query('UPDATE devices SET reset_pending = false WHERE device_id = $1', [device_id.trim()]);
+      res.status(200).json({
+        success: true,
+        command: 'RESET',
+        reset: true,
+        message: 'Remote reset command received from FreshTag website. Resetting to pairing mode.',
+      });
+      return;
+    }
+
+    // 2. Account Binding Check: If device registered to different account, command reset to pairing mode
+    if (device.account_id && device.account_id !== account_id.trim()) {
+      res.status(403).json({
+        success: false,
+        command: 'RESET',
+        reset: true,
+        message: 'Device is paired to a different account. Resetting to pairing mode.',
+      });
+      return;
+    }
+
+    // 3. Sensor Calibration & Custom Override
+    let finalTemp = temperature;
+    let finalHum = humidity;
+    let finalGas = gas_level;
+
+    if (device.override_mode) {
+      // Custom Data Override Mode is enabled on website
+      if (device.custom_temp !== null && device.custom_temp !== undefined) {
+        finalTemp = parseFloat(device.custom_temp);
+      }
+      if (device.custom_humidity !== null && device.custom_humidity !== undefined) {
+        finalHum = parseFloat(device.custom_humidity);
+      }
+      if (device.custom_gas !== null && device.custom_gas !== undefined) {
+        finalGas = parseInt(device.custom_gas, 10);
+      }
+    } else {
+      // Apply calibration offsets and multipliers
+      const tempOffset = parseFloat(device.temp_offset || 0);
+      const humOffset = parseFloat(device.humidity_offset || 0);
+      const gasScale = parseFloat(device.gas_scale || 1.0);
+      const gasOffset = parseInt(device.gas_offset || 0, 10);
+
+      if (finalTemp !== null) {
+        finalTemp = parseFloat((finalTemp + tempOffset).toFixed(2));
+      }
+      if (finalHum !== null) {
+        finalHum = parseFloat(Math.min(100, Math.max(0, finalHum + humOffset)).toFixed(2));
+      }
+      if (finalGas !== null) {
+        finalGas = Math.max(0, Math.round(finalGas * gasScale + gasOffset));
+      }
+    }
+
+    // Insert telemetry reading with calibrated / verified values
     const insertResult = await query(
       `INSERT INTO telemetry_readings (
         device_id, account_id, door_status, state,
@@ -117,9 +177,9 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         dht_exists,
         gas_exists,
         door_exists,
-        temperature,
-        humidity,
-        gas_level,
+        finalTemp,
+        finalHum,
+        finalGas,
         system_mode,
         inlet_fan,
         outlet_fan,
@@ -161,8 +221,20 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 
     res.status(201).json({
       success: true,
+      command: 'OK',
+      reset: false,
       message: 'Telemetry reading ingested successfully',
       reading: readingObject,
+      calibration: {
+        temp_offset: parseFloat(device.temp_offset || 0),
+        humidity_offset: parseFloat(device.humidity_offset || 0),
+        gas_scale: parseFloat(device.gas_scale || 1.0),
+        gas_offset: parseInt(device.gas_offset || 0, 10),
+        override_mode: Boolean(device.override_mode),
+        custom_temp: device.custom_temp !== null && device.custom_temp !== undefined ? parseFloat(device.custom_temp) : null,
+        custom_humidity: device.custom_humidity !== null && device.custom_humidity !== undefined ? parseFloat(device.custom_humidity) : null,
+        custom_gas: device.custom_gas !== null && device.custom_gas !== undefined ? parseInt(device.custom_gas, 10) : null,
+      },
     });
   } catch (err: any) {
     console.error('[Telemetry Ingestion Error]:', err);

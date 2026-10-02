@@ -42,10 +42,39 @@ export async function initializeDatabase() {
       gas_threshold INTEGER DEFAULT 230,
       granule_interval_days INTEGER DEFAULT 30,
       granule_last_replaced TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      temp_offset NUMERIC(5, 2) DEFAULT 0.0,
+      humidity_offset NUMERIC(5, 2) DEFAULT 0.0,
+      gas_scale NUMERIC(5, 2) DEFAULT 1.0,
+      gas_offset INTEGER DEFAULT 0,
+      override_mode BOOLEAN DEFAULT FALSE,
+      custom_temp NUMERIC(5, 2) DEFAULT NULL,
+      custom_humidity NUMERIC(5, 2) DEFAULT NULL,
+      custom_gas INTEGER DEFAULT NULL,
+      reset_pending BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Safe column migrations for existing devices table
+  const deviceCols = [
+    { name: 'temp_offset', type: 'NUMERIC(5, 2) DEFAULT 0.0' },
+    { name: 'humidity_offset', type: 'NUMERIC(5, 2) DEFAULT 0.0' },
+    { name: 'gas_scale', type: 'NUMERIC(5, 2) DEFAULT 1.0' },
+    { name: 'gas_offset', type: 'INTEGER DEFAULT 0' },
+    { name: 'override_mode', type: 'BOOLEAN DEFAULT FALSE' },
+    { name: 'custom_temp', type: 'NUMERIC(5, 2) DEFAULT NULL' },
+    { name: 'custom_humidity', type: 'NUMERIC(5, 2) DEFAULT NULL' },
+    { name: 'custom_gas', type: 'INTEGER DEFAULT NULL' },
+    { name: 'reset_pending', type: 'BOOLEAN DEFAULT FALSE' },
+  ];
+  for (const c of deviceCols) {
+    try {
+      await query(`ALTER TABLE devices ADD COLUMN ${c.name} ${c.type}`);
+    } catch {
+      // Column already exists
+    }
+  }
 
   // Create Telemetry Readings table
   await query(`

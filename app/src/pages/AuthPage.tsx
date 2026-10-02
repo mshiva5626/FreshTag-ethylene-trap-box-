@@ -1,6 +1,7 @@
 import { useState, useId } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { FreshGuardLogo } from '../components/FreshGuardLogo'
 
 type Tab = 'login' | 'register' | 'forgot'
 
@@ -68,8 +69,8 @@ export default function AuthPage() {
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-8 max-w-lg mx-auto w-full">
         {/* Brand header */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg border-2 border-white bg-white mb-3 shrink-0">
-            <img src="/assets/fruits/apple.jpg" alt="FreshGuard" className="w-full h-full object-cover" />
+          <div className="mb-3 shrink-0 rounded-[22px] p-0.5 bg-gradient-to-br from-white/80 to-transparent shadow-[0_8px_24px_rgba(24,63,39,0.22)]">
+            <FreshGuardLogo size={64} />
           </div>
           <h1 className="text-xl font-bold text-[var(--color-on-surface)] tracking-tight">FreshGuard</h1>
           <p className="text-sm text-[var(--color-on-surface-variant)] mt-0.5">Smart produce storage & ethylene telemetry</p>

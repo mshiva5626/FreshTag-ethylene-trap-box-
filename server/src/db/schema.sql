@@ -31,6 +31,15 @@ CREATE TABLE IF NOT EXISTS devices (
     humidity_min NUMERIC(5, 2) DEFAULT 90.0,
     humidity_max NUMERIC(5, 2) DEFAULT 95.0,
     gas_threshold INTEGER DEFAULT 230,
+    temp_offset NUMERIC(5, 2) DEFAULT 0.0,
+    humidity_offset NUMERIC(5, 2) DEFAULT 0.0,
+    gas_scale NUMERIC(5, 2) DEFAULT 1.0,
+    gas_offset INTEGER DEFAULT 0,
+    override_mode BOOLEAN DEFAULT FALSE,
+    custom_temp NUMERIC(5, 2) DEFAULT NULL,
+    custom_humidity NUMERIC(5, 2) DEFAULT NULL,
+    custom_gas INTEGER DEFAULT NULL,
+    reset_pending BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );

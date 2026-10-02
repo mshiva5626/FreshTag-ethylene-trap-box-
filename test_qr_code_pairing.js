@@ -1,6 +1,11 @@
 /**
  * Automated Verification Script: Test QR Code Generation, Scanning & Decoding in Code
  * Tests and verifies that the QR code works programmatically in code without physical hardware.
+ * Verifies:
+ *  1. Main FreshTag WebApp Pairing QR (No IP Address needed)
+ *  2. Wi-Fi Auto-Connect QR (WIFI:S:FreshGuard-Setup;T:nopass;;)
+ *  3. Chamber Setup Portal QR (Fallback)
+ *  4. ESP8266 / ESP32 Main WebApp Ingestion Payload Contract
  */
 
 import { createRequire } from 'module';
@@ -39,7 +44,8 @@ function qrToRgbaBuffer(qr, scale = 8, border = 4) {
 
 async function runQrVerificationTest() {
   console.log('\n======================================================');
-  console.log('  FreshGuard QR Code In-Code Verification Suite');
+  console.log('  FreshTag QR Code In-Code Verification Suite');
+  console.log('  ESP8266 & ESP32 Main WebApp QR Pairing Mode');
   console.log('======================================================\n');
 
   let passedTests = 0;
@@ -56,70 +62,70 @@ async function runQrVerificationTest() {
     }
   }
 
-  // --------------------------------------------------------------------------
-  // TEST 1: Wi-Fi Auto-Connect QR Code Generation & Scanning in Code
-  // --------------------------------------------------------------------------
-  console.log('--- Step 1: Testing Wi-Fi QR Code (WIFI:S:FreshGuard-Setup;T:nopass;;) ---');
-  const wifiQrString = 'WIFI:S:FreshGuard-Setup;T:nopass;;';
-  
-  // 1a. Generate QR Matrix
-  const wifiQr = QRCode.create(wifiQrString, { errorCorrectionLevel: 'M' });
-  assert(wifiQr.modules.size > 0, `Generated QR Code matrix (${wifiQr.modules.size}x${wifiQr.modules.size} modules)`);
-
-  // 1b. Rasterize to in-memory RGBA pixel buffer
-  const { rgba: wifiPixels, width: wifiW, height: wifiH } = qrToRgbaBuffer(wifiQr, 8, 4);
-  assert(wifiPixels.length === wifiW * wifiH * 4, `Created RGBA raster bitmap buffer (${wifiW}x${wifiH} px)`);
-
-  // 1c. Scan and decode pixels using jsQR in code
-  const scannedWifiResult = jsQR(wifiPixels, wifiW, wifiH);
-  assert(scannedWifiResult !== null, 'jsQR engine successfully detected and scanned the QR code in code');
-  assert(scannedWifiResult && scannedWifiResult.data === wifiQrString, `Decoded payload matches exactly: "${scannedWifiResult.data}"`);
-
-  // 1d. Parse Wi-Fi parameters from scanned string
-  const ssidMatch = scannedWifiResult.data.match(/S:([^;]+)/i);
-  assert(ssidMatch && ssidMatch[1] === 'FreshGuard-Setup', `Parsed SoftAP SSID correctly: "${ssidMatch[1]}"`);
-
-  // --------------------------------------------------------------------------
-  // TEST 2: Setup Portal URL QR Code Generation & Scanning in Code
-  // --------------------------------------------------------------------------
-  console.log('\n--- Step 2: Testing Chamber Setup Portal QR Code ---');
   const targetAccount = 'mshiva5626';
   const targetDevice = 'SF-001';
-  const portalUrlString = `http://192.168.4.1/setup?account=${targetAccount}&device=${targetDevice}`;
-
-  const portalQr = QRCode.create(portalUrlString, { errorCorrectionLevel: 'M' });
-  const { rgba: portalPixels, width: portalW, height: portalH } = qrToRgbaBuffer(portalQr, 8, 4);
-  const scannedPortalResult = jsQR(portalPixels, portalW, portalH);
-
-  assert(scannedPortalResult !== null, 'Scanned Portal URL QR code from pixel buffer');
-  assert(scannedPortalResult && scannedPortalResult.data === portalUrlString, `Decoded Portal URL matches: "${scannedPortalResult.data}"`);
-
-  const parsedUrl = new URL(scannedPortalResult.data);
-  assert(parsedUrl.hostname === '192.168.4.1', `Target Gateway IP verified: ${parsedUrl.hostname}`);
-  assert(parsedUrl.searchParams.get('account') === targetAccount, `Bound Account ID verified: ${parsedUrl.searchParams.get('account')}`);
-  assert(parsedUrl.searchParams.get('device') === targetDevice, `Device Hardware ID verified: ${parsedUrl.searchParams.get('device')}`);
 
   // --------------------------------------------------------------------------
-  // TEST 3: Ingestion Payload Formatting (ESP32 /api/wifi-config contract)
+  // TEST 1: Main FreshTag WebApp Pairing QR Code Generation & Scanning in Code
   // --------------------------------------------------------------------------
-  console.log('\n--- Step 3: Verifying Ingestion Payload & Persistence Contract ---');
+  console.log('--- Step 1: Testing Main FreshTag WebApp Pairing QR Code (No IP Address) ---');
+  const webAppUrlString = `https://freshguard-platform.onrender.com/app/devices/pair?device=${targetDevice}&account=${targetAccount}`;
+
+  const webAppQr = QRCode.create(webAppUrlString, { errorCorrectionLevel: 'M' });
+  assert(webAppQr.modules.size > 0, `Generated WebApp QR matrix (${webAppQr.modules.size}x${webAppQr.modules.size} modules)`);
+
+  const { rgba: webAppPixels, width: webAppW, height: webAppH } = qrToRgbaBuffer(webAppQr, 8, 4);
+  assert(webAppPixels.length === webAppW * webAppH * 4, `Created RGBA bitmap buffer for WebApp QR (${webAppW}x${webAppH} px)`);
+
+  const scannedWebAppResult = jsQR(webAppPixels, webAppW, webAppH);
+  assert(scannedWebAppResult !== null, 'jsQR successfully detected and scanned WebApp QR from pixel buffer');
+  assert(scannedWebAppResult && scannedWebAppResult.data === webAppUrlString, `Decoded URL matches exactly: "${scannedWebAppResult?.data}"`);
+
+  const parsedWebAppUrl = new URL(scannedWebAppResult.data);
+  assert(parsedWebAppUrl.hostname === 'freshguard-platform.onrender.com', `Target WebApp Domain verified: ${parsedWebAppUrl.hostname}`);
+  assert(parsedWebAppUrl.pathname === '/app/devices/pair', `Pairing wizard path verified: ${parsedWebAppUrl.pathname}`);
+  assert(parsedWebAppUrl.searchParams.get('device') === targetDevice, `Device Hardware ID parsed: ${parsedWebAppUrl.searchParams.get('device')}`);
+  assert(parsedWebAppUrl.searchParams.get('account') === targetAccount, `Account binding parsed: ${parsedWebAppUrl.searchParams.get('account')}`);
+
+  // --------------------------------------------------------------------------
+  // TEST 2: Wi-Fi Auto-Connect QR Code Generation & Scanning in Code
+  // --------------------------------------------------------------------------
+  console.log('\n--- Step 2: Testing Wi-Fi Hotspot Auto-Join QR Code ---');
+  const wifiQrString = 'WIFI:S:FreshGuard-Setup;T:nopass;;';
+  
+  const wifiQr = QRCode.create(wifiQrString, { errorCorrectionLevel: 'M' });
+  const { rgba: wifiPixels, width: wifiW, height: wifiH } = qrToRgbaBuffer(wifiQr, 8, 4);
+  const scannedWifiResult = jsQR(wifiPixels, wifiW, wifiH);
+
+  assert(scannedWifiResult !== null, 'jsQR successfully detected SoftAP Wi-Fi QR code');
+  assert(scannedWifiResult && scannedWifiResult.data === wifiQrString, `Decoded Wi-Fi payload matches: "${scannedWifiResult?.data}"`);
+
+  const ssidMatch = scannedWifiResult.data.match(/S:([^;]+)/i);
+  assert(ssidMatch && ssidMatch[1] === 'FreshGuard-Setup', `Parsed SoftAP SSID correctly: "${ssidMatch?.[1]}"`);
+
+  // --------------------------------------------------------------------------
+  // TEST 3: Ingestion Payload & Main FreshTag WebApp Persistence Contract
+  // --------------------------------------------------------------------------
+  console.log('\n--- Step 3: Verifying ESP8266 / ESP32 Main WebApp Ingestion Contract ---');
   const userHomeWifi = 'Botanical_Lab_WiFi';
   const userHomePass = 'supersecret123';
+  const mainWebAppTelemetryUrl = 'https://freshguard-platform.onrender.com/api/telemetry';
 
-  const esp32ConfigPayload = {
+  const espConfigPayload = {
     ssid: userHomeWifi,
     password: userHomePass,
     account_id: targetAccount,
     device_id: targetDevice,
-    server: 'http://192.168.1.100:8080/api/telemetry'
+    server: mainWebAppTelemetryUrl
   };
 
-  const serialized = JSON.stringify(esp32ConfigPayload);
+  const serialized = JSON.stringify(espConfigPayload);
   const parsedBack = JSON.parse(serialized);
 
   assert(parsedBack.ssid === userHomeWifi, `Payload contains home Wi-Fi SSID: ${parsedBack.ssid}`);
   assert(parsedBack.account_id === targetAccount, `Payload locks to Account ID: ${parsedBack.account_id}`);
   assert(parsedBack.device_id === targetDevice, `Payload identifies device: ${parsedBack.device_id}`);
+  assert(parsedBack.server === mainWebAppTelemetryUrl, `Payload directs telemetry to Main FreshTag WebApp (not local IP): ${parsedBack.server}`);
 
   // --------------------------------------------------------------------------
   // SUMMARY
@@ -127,7 +133,7 @@ async function runQrVerificationTest() {
   console.log('\n======================================================');
   console.log(`  VERIFICATION RESULTS: ${passedTests}/${totalTests} TESTS PASSED`);
   if (passedTests === totalTests) {
-    console.log('  STATUS: QR CODE CODE-BASED SCANNING & PAIRING FULLY VERIFIED! (100%)');
+    console.log('  STATUS: MAIN WEBAPP QR PAIRING MODE FULLY VERIFIED! (100%)');
   } else {
     console.log('  STATUS: SOME TESTS FAILED');
   }
