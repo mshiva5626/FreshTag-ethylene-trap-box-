@@ -555,9 +555,103 @@ void handleApiStatus() {
 
 void handleApiReset() {
   server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.sendHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
   server.send(200, "application/json", "{\"success\":true,\"message\":\"Resetting chamber into Pairing Mode...\"}");
   delay(150);
   wipeConfigAndReboot();
+}
+
+// /api/wifi-config — JSON provisioning endpoint called by FreshTag WebApp
+// Accepts: { ssid, password, account_id, device_id, server, nickname }
+void handleApiWifiConfig() {
+  // CORS preflight
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.sendHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  server.sendHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (server.method() == HTTP_OPTIONS) {
+    server.send(204, "text/plain", "");
+    return;
+  }
+
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"No JSON body received\"}");
+    return;
+  }
+
+  FreshTagDoc doc;
+  DeserializationError err = deserializeJson(doc, server.arg("plain"));
+  if (err) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON payload\"}");
+    return;
+  }
+
+  // Validate required SSID
+  if (!doc.containsKey("ssid") || String(doc["ssid"].as<const char*>()).length() == 0) {
+    server.send(400, "application/json", "{\"error\":\"ssid is required\"}");
+    return;
+  }
+
+  // Apply fields from JSON payload
+  strncpy(config.ssid,       doc["ssid"] | "",         sizeof(config.ssid) - 1);
+  strncpy(config.password,   doc["password"] | "",     sizeof(config.password) - 1);
+  if (doc.containsKey("account_id") && String(doc["account_id"].as<const char*>()).length() > 0) {
+    strncpy(config.account_id, doc["account_id"] | "", sizeof(config.account_id) - 1);
+  }
+  if (doc.containsKey("device_id") && String(doc["device_id"].as<const char*>()).length() > 0) {
+    strncpy(config.device_id, doc["device_id"] | "",   sizeof(config.device_id) - 1);
+  }
+  if (doc.containsKey("server") && String(doc["server"].as<const char*>()).length() > 4) {
+    strncpy(config.server_url, doc["server"] | "",     sizeof(config.server_url) - 1);
+  }
+  config.configured = true;
+  saveConfigToEEPROM();
+
+  Serial.printf("[API] /api/wifi-config: SSID='%s' Account='%s' Device='%s'\n",
+    config.ssid, config.account_id, config.device_id);
+
+  // Build success response with confirmed values
+  FreshTagDoc res;
+  res["success"]    = true;
+  res["message"]    = "Credentials saved to Flash. Chamber is restarting and connecting to Wi-Fi...";
+  res["device_id"]  = config.device_id;
+  res["account_id"] = config.account_id;
+  res["ssid"]       = config.ssid;
+  String out;
+  serializeJson(res, out);
+  server.send(200, "application/json", out);
+
+  delay(800);
+  ESP.restart();
+}
+
+// /scan-wifi — Return list of nearby 2.4GHz networks as JSON for the WebApp dropdown
+void handleScanWifi() {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.sendHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (server.method() == HTTP_OPTIONS) {
+    server.send(204, "text/plain", "");
+    return;
+  }
+
+  int n = WiFi.scanNetworks(false, false); // block, no hidden
+  FreshTagDoc doc;
+  JsonArray arr = doc.createNestedArray("networks");
+
+  for (int i = 0; i < n && i < 15; i++) {
+    JsonObject net = arr.createNestedObject();
+    net["ssid"]   = WiFi.SSID(i);
+    net["rssi"]   = WiFi.RSSI(i);
+    net["secure"] = (WiFi.encryptionType(i) != ENC_TYPE_NONE);
+  }
+  WiFi.scanDelete();
+
+  String out;
+  serializeJson(doc, out);
+  server.send(200, "application/json", out);
 }
 
 void handleApiControl() {
@@ -703,12 +797,16 @@ void startPairingMode() {
   // Setup Web Server routes
   server.on("/", HTTP_GET, handleRootPortal);
   server.on("/setup", HTTP_GET, handleRootPortal);
-  server.on("/save", HTTP_POST, handleSavePortal);
+  server.on("/save", HTTP_POST, handleSavePortal);             // HTML captive portal form
+  server.on("/api/wifi-config", HTTP_POST, handleApiWifiConfig); // WebApp JSON provisioning
+  server.on("/api/wifi-config", HTTP_OPTIONS, handleApiWifiConfig); // CORS preflight
+  server.on("/scan-wifi", HTTP_GET, handleScanWifi);             // WebApp network picker
+  server.on("/scan-wifi", HTTP_OPTIONS, handleScanWifi);         // CORS preflight
   server.on("/status", HTTP_GET, handleApiStatus);
   server.on("/reset", HTTP_POST, handleApiReset);
   server.on("/unpair", HTTP_POST, handleApiReset);
 
-  // Captive portal probes
+  // Captive portal probes — MUST come after named routes
   server.on("/generate_204", handleCaptiveRedirect);
   server.on("/hotspot-detect.html", handleCaptiveRedirect);
   server.on("/ncsi.txt", handleCaptiveRedirect);
