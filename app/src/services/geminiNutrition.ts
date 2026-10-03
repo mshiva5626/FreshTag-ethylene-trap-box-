@@ -64,11 +64,10 @@ export function getGeminiApiKey(): string {
 }
 
 const CANDIDATE_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
   'gemini-1.5-flash',
   'gemini-1.5-flash-latest',
-  'gemini-flash-latest',
+  'gemini-1.5-pro',
+  'gemini-1.5-pro-latest',
 ];
 
 const NUTRITION_SYSTEM_PROMPT = `You are an expert Post-Harvest Physiologist, Produce Quality Inspector, and USDA Clinical Nutritionist specialized in the FreshGuard Ethylene Trap & Freshness Preservation platform.
@@ -134,13 +133,13 @@ IMPORTANT ACCURACY RULES:
 7. Do NOT wrap output with backticks or markdown; return pure JSON.`;
 
 /**
- * Resizes and compresses an image in the browser to max dimension 1024px
- * for optimal upload speed and Gemini multimodal analysis.
+ * Resizes and compresses an image in the browser to max dimension 1536px
+ * for best defect visibility and Gemini multimodal analysis accuracy.
  */
 export async function optimizeImageForAnalysis(
   fileOrDataUrl: File | string,
-  maxDimension = 1024,
-  quality = 0.85
+  maxDimension = 1536,
+  quality = 0.92
 ): Promise<{ base64Data: string; mimeType: string; previewUrl: string }> {
   // Support server-side / node testing environments where document/Image is not defined
   if (typeof document === 'undefined' || typeof Image === 'undefined') {
@@ -352,41 +351,63 @@ export async function annotateImageWithDefects(
 }
 
 /**
- * Executes a Gemini request with automatic fallback across available flash models
+ * Executes a Gemini request with automatic fallback across available flash/pro models.
+ * Falls back to the server-side proxy (which uses GEMINI_API_KEY env var on Render).
  */
-async function callGemini(payload: any): Promise<any> {
+async function callGemini(payload: any, userHint?: string): Promise<any> {
   const apiKey = getGeminiApiKey();
   let lastError: Error | null = null;
+
+  // Build a payload WITHOUT responseMimeType — it causes empty text on image requests
+  const safePayload = {
+    ...payload,
+    generationConfig: {
+      temperature: 0.15,
+      maxOutputTokens: 4096,
+    },
+  };
 
   if (apiKey) {
     for (const model of CANDIDATE_MODELS) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      const timeoutId = setTimeout(() => controller.abort(), 28000);
 
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(safePayload),
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
 
         if (!response.ok) {
           const errorBody = await response.text();
-          console.warn(`[GeminiNutrition] Model ${model} returned ${response.status}: ${errorBody}`);
+          console.warn(`[GeminiNutrition] Model ${model} returned ${response.status}:`, errorBody.slice(0, 200));
           lastError = new Error(`Gemini ${model} HTTP ${response.status}`);
-          continue; // try next model
+          continue;
         }
 
         const data = await response.json();
-        if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-          const rawText = data.candidates[0].content.parts[0].text;
-          return parseGeminiJson(rawText);
-        } else {
-          lastError = new Error('Empty candidates response from Gemini');
+
+        // Check for safety filter / block
+        const finishReason = data.candidates?.[0]?.finishReason;
+        if (finishReason && finishReason !== 'STOP' && finishReason !== 'MAX_TOKENS') {
+          console.warn(`[GeminiNutrition] Model ${model} blocked: ${finishReason}`);
+          lastError = new Error(`Model ${model} blocked: ${finishReason}`);
+          continue;
         }
+
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawText) {
+          console.warn(`[GeminiNutrition] Model ${model} empty text. Response:`, JSON.stringify(data).slice(0, 300));
+          lastError = new Error(`Model ${model} returned empty content`);
+          continue;
+        }
+
+        console.log(`[GeminiNutrition] Success with ${model}, raw length: ${rawText.length}`);
+        return parseGeminiJson(rawText);
       } catch (err: any) {
         clearTimeout(timeoutId);
         console.warn(`[GeminiNutrition] Error with ${model}:`, err.message);
@@ -395,18 +416,20 @@ async function callGemini(payload: any): Promise<any> {
     }
   }
 
-  // Attempt backend proxy endpoint /api/nutrition/analyze (utilizes server GEMINI_API_KEY on Render)
+  // Attempt backend proxy endpoint /api/nutrition/analyze (uses server GEMINI_API_KEY on Render)
   try {
     const isImage = !!payload?.contents?.[0]?.parts?.find((p: any) => p.inlineData);
     let bodyData: any = {};
     if (isImage) {
       const inline = payload.contents[0].parts.find((p: any) => p.inlineData).inlineData;
-      bodyData = { image: inline.data, mimeType: inline.mimeType };
+      // Also pass hint so server can include it in the prompt
+      bodyData = { image: inline.data, mimeType: inline.mimeType, query: userHint || undefined };
     } else {
       const textPart = payload?.contents?.[0]?.parts?.[0]?.text || '';
       bodyData = { query: textPart };
     }
 
+    console.log('[GeminiNutrition] Attempting server-side proxy...');
     const res = await fetch('/api/nutrition/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -415,13 +438,19 @@ async function callGemini(payload: any): Promise<any> {
 
     if (res.ok) {
       const json = await res.json();
-      if (json.data) return json.data;
+      if (json.data) {
+        console.log('[GeminiNutrition] Server proxy success, model:', json.model);
+        return json.data;
+      }
+    } else {
+      const errText = await res.text();
+      console.warn('[GeminiNutrition] Server proxy returned', res.status, errText.slice(0, 200));
     }
-  } catch (backendErr) {
-    console.warn('[GeminiNutrition] Backend proxy fallback failed:', backendErr);
+  } catch (backendErr: any) {
+    console.warn('[GeminiNutrition] Backend proxy failed:', backendErr.message);
   }
 
-  throw lastError || new Error('All Gemini models failed to return content');
+  throw lastError || new Error('All Gemini models and server proxy failed to return content');
 }
 
 /**
@@ -461,30 +490,21 @@ ${userHint ? `Context hint from user: "${userHint}".` : ''}
           ],
         },
       ],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.2,
-      },
+      // Note: generationConfig is overridden inside callGemini (no responseMimeType)
     };
 
-    const parsed = await callGemini(payload);
+    const parsed = await callGemini(payload, userHint);
     const specimen = formatSpecimenData(parsed, 'gemini-vision', previewUrl);
     // Annotate the preview image with defect bounding boxes
     if (specimen.defects && specimen.defects.length > 0) {
       specimen.annotatedImageUrl = await annotateImageWithDefects(previewUrl, specimen.defects);
     }
     return specimen;
-  } catch (err) {
-    console.warn('[GeminiNutrition] Gemini vision call exceeded quota or failed. Invoking Google Gemma 4 31B fallback...', err);
-    try {
-      const gemmaResult = await generateGemmaNutritionAnalysis(userHint || 'Fresh Harvest Specimen');
-      gemmaResult.imageUrl = previewUrl;
-      gemmaResult.aiAnalysisNotes = (gemmaResult.aiAnalysisNotes || '') + ' (Analyzed via Secondary Botanical AI Engine)';
-      return gemmaResult;
-    } catch (gemmaErr) {
-      console.error('[GeminiNutrition] Gemma fallback also failed:', gemmaErr);
-      return fallbackToPreset(userHint || 'Apple', 'Vision analysis encountered an error. Applied USDA preset.');
-    }
+  } catch (err: any) {
+    // Re-throw so NutritionScannerPage shows a real error — do NOT silently return
+    // text-only Gemma data for an image that was never analyzed visually.
+    console.error('[GeminiNutrition] Vision analysis failed — no silent fallback for image scans:', err.message);
+    throw new Error(`Image analysis failed: ${err.message}. Please retry or check your API key / network connection.`);
   }
 }
 

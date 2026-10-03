@@ -7,11 +7,10 @@ function getApiKey(): string {
 }
 
 const CANDIDATE_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
   'gemini-1.5-flash',
   'gemini-1.5-flash-latest',
-  'gemini-flash-latest',
+  'gemini-1.5-pro',
+  'gemini-1.5-pro-latest',
 ];
 
 const NUTRITION_SYSTEM_PROMPT = `You are an expert Post-Harvest Physiologist, Produce Quality Inspector, and USDA Clinical Nutritionist specialized in the FreshGuard Ethylene Trap & Freshness Preservation platform.
@@ -118,12 +117,14 @@ router.post('/analyze', async (req: Request, res: Response): Promise<void> => {
     const payload = {
       contents: [{ parts }],
       generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.2,
+        // Note: do NOT set responseMimeType here — it causes empty text responses
+        // on some Gemini versions when combined with multimodal (image) input.
+        temperature: 0.15,
+        maxOutputTokens: 4096,
       },
     };
 
-    let lastError = null;
+    let lastError: any = null;
     for (const model of CANDIDATE_MODELS) {
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -134,27 +135,44 @@ router.post('/analyze', async (req: Request, res: Response): Promise<void> => {
         });
 
         if (!response.ok) {
-          lastError = new Error(`Model ${model} returned HTTP ${response.status}`);
+          const errBody = await response.text();
+          console.warn(`[Nutrition] Model ${model} HTTP ${response.status}:`, errBody.slice(0, 200));
+          lastError = new Error(`Model ${model} returned HTTP ${response.status}: ${errBody.slice(0, 100)}`);
           continue;
         }
 
         const data: any = await response.json();
-        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (rawText) {
-          let cleaned = rawText.trim();
-          if (cleaned.startsWith('```')) {
-            cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '');
-          }
-          const firstBrace = cleaned.indexOf('{');
-          const lastBrace = cleaned.lastIndexOf('}');
-          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-            cleaned = cleaned.substring(firstBrace, lastBrace + 1);
-          }
-          const result = JSON.parse(cleaned);
-          res.status(200).json({ success: true, model, data: result });
-          return;
+
+        // Check for safety/block reasons
+        const blockReason = data.candidates?.[0]?.finishReason;
+        if (blockReason && blockReason !== 'STOP' && blockReason !== 'MAX_TOKENS') {
+          console.warn(`[Nutrition] Model ${model} blocked: ${blockReason}`);
+          lastError = new Error(`Model ${model} blocked: ${blockReason}`);
+          continue;
         }
+
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawText) {
+          console.warn(`[Nutrition] Model ${model} returned empty text. Full response:`, JSON.stringify(data).slice(0, 400));
+          lastError = new Error(`Model ${model} returned empty content`);
+          continue;
+        }
+
+        let cleaned = rawText.trim();
+        if (cleaned.startsWith('```')) {
+          cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '');
+        }
+        const firstBrace = cleaned.indexOf('{');
+        const lastBrace = cleaned.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+        }
+        const result = JSON.parse(cleaned);
+        console.log(`[Nutrition] Success with model: ${model}, defects found: ${result.defects?.length ?? 0}`);
+        res.status(200).json({ success: true, model, data: result });
+        return;
       } catch (err: any) {
+        console.warn(`[Nutrition] Exception with model ${model}:`, err.message);
         lastError = err;
       }
     }
