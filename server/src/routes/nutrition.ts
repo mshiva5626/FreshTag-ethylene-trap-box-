@@ -7,14 +7,22 @@ function getApiKey(): string {
 }
 
 const CANDIDATE_MODELS = [
-  'gemini-3.5-flash-lite',
-  'gemini-3.5-flash',
-  'gemini-3.8-flash',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-latest',
   'gemini-flash-latest',
 ];
 
-const NUTRITION_SYSTEM_PROMPT = `You are an expert Post-Harvest Physiologist and USDA Clinical Nutritionist specialized in the FreshGuard Ethylene Trap & Freshness Preservation platform.
-Analyze botanical produce specimens accurately based on empirical horticultural post-harvest science and USDA FoodData Central.
+const NUTRITION_SYSTEM_PROMPT = `You are an expert Post-Harvest Physiologist, Produce Quality Inspector, and USDA Clinical Nutritionist specialized in the FreshGuard Ethylene Trap & Freshness Preservation platform.
+Analyze botanical produce specimens with HIGH ACCURACY using empirical horticultural post-harvest science, USDA FoodData Central, and visual defect detection.
+
+CRITICAL DEFECT ANALYSIS RULES:
+- Carefully examine the ENTIRE surface of the produce for: dark spots, black patches, bruising, mold, fungal lesions, rot zones, mechanical damage, pest damage, scald lesions, and discoloration patches.
+- For each defect found, estimate its bounding box as a percentage of the image (xPct, yPct = top-left corner; wPct, hPct = width/height as % of image).
+- Quantify how each defect category DECREASES or INCREASES specific nutrients (e.g. brown rot decreases vitamin C by ~25%, bruised tissue has elevated ethylene which accelerates antioxidant degradation).
+- The nutrient values you report MUST already reflect the degraded/affected state given observed defects.
+- Assign a quality grade: A (no defects, >90% fresh), B (minor surface blemishes, 75-90%), C (moderate degradation, 50-75%), D (<50% usable, significant rot or mold).
 
 You must return ONLY a valid JSON object matching this exact schema:
 {
@@ -23,6 +31,7 @@ You must return ONLY a valid JSON object matching this exact schema:
   "emoji": "Single most accurate emoji",
   "category": "e.g. Climacteric Pome / Climacteric Tropical / Non-Climacteric Drupe / Leafy Brassica",
   "freshnessScore": 95,
+  "qualityGrade": "A",
   "ripeness": "Concise physical ripeness state and soluble solids Brix (e.g. Firm Crisp, Brix 14.5°)",
   "ethyleneOutput": "e.g. 1.9 µL/kg·h (Moderate Respiration)",
   "ambientShelfLife": "e.g. 4–5 Days",
@@ -38,8 +47,33 @@ You must return ONLY a valid JSON object matching this exact schema:
   "recommendedVaultTemp": 3.0,
   "recommendedHumidity": 90.0,
   "recommendedGasThreshold": 180,
-  "aiAnalysisNotes": "Scientific post-harvest notes on respiration, chilling injury sensitivity, and ethylene mitigation"
-}`;
+  "aiAnalysisNotes": "Scientific post-harvest notes on respiration, chilling injury sensitivity, and ethylene mitigation",
+  "defects": [
+    {
+      "type": "e.g. Brown Rot / Black Spot / Bruising / Fungal Mold / Scald / Mechanical Damage",
+      "severity": "Minor | Moderate | Severe",
+      "description": "Precise description of the defect, location on fruit, and estimated area affected",
+      "xPct": 30.5,
+      "yPct": 20.0,
+      "wPct": 15.0,
+      "hPct": 12.0,
+      "nutrientImpact": [
+        { "nutrient": "Vitamin C", "changeDirection": "decrease", "changePct": 18, "reason": "Oxidative enzymes in bruised tissue degrade ascorbic acid" },
+        { "nutrient": "Antioxidants", "changeDirection": "decrease", "changePct": 22, "reason": "Phenolic compound oxidation in damaged cells" }
+      ]
+    }
+  ],
+  "overallNutrientImpactSummary": "e.g. Observed brown spot reduces Vitamin C by ~18% and antioxidants by ~22% from USDA baseline for this cultivar. Remaining flesh retains full potassium and fiber content.",
+  "consumerSafetyNote": "e.g. Safe to consume after trimming affected area. / Discard immediately — extensive mold penetration. / Minor blemish is cosmetic only, full nutritional value intact."
+}
+
+IMPORTANT ACCURACY RULES:
+1. If NO defects are detected, return defects as an empty array [].
+2. Nutrient values in the main fields (calories, vitaminC_mg, etc.) must reflect the ACTUAL current state, factoring in defect degradation.
+3. Bounding box coordinates (xPct, yPct, wPct, hPct) must be the best estimate from what is visible in the image — they will be used to draw overlay rectangles.
+4. Be scientifically precise about which nutrients are affected and by how much (cite mechanism).
+5. qualityGrade must be one of: A, B, C, D.
+6. Do NOT wrap output with backticks or markdown; return pure JSON.`;
 
 router.post('/analyze', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -58,7 +92,16 @@ router.post('/analyze', async (req: Request, res: Response): Promise<void> => {
       const detectedMime = mimeType || (image.startsWith('data:') ? image.split(';')[0].replace('data:', '') : 'image/jpeg');
 
       parts.push({
-        text: `${NUTRITION_SYSTEM_PROMPT}\n\nExamine this botanical produce image carefully. ${query ? `Context hint: ${query}` : ''} Identify cultivar, inspect surface morphology, estimate freshness score (1-100), and calculate USDA nutrition and FreshGuard chamber setpoints.`
+        text: `${NUTRITION_SYSTEM_PROMPT}\n\nExamine this botanical produce image with MAXIMUM PRECISION. ${query ? `Context hint from user: "${query}".` : ''}
+
+1. Identify the exact cultivar.
+2. CAREFULLY scan every pixel of the surface for defects: dark spots, black patches, mold, bruising, rot, scald, mechanical damage.
+3. For each defect, provide bounding box coordinates as percentage of image dimensions (xPct, yPct, wPct, hPct).
+4. Quantify the nutrient impact of each defect with scientific reasoning.
+5. Adjust all nutrient values to reflect actual degraded state.
+6. Assign quality grade A/B/C/D.
+7. Provide consumer safety guidance.
+8. Calculate precise USDA nutrition and FreshGuard chamber setpoints.`
       });
       parts.push({
         inlineData: {

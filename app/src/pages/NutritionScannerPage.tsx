@@ -7,6 +7,7 @@ import {
   analyzeProduceImage,
   analyzeProduceText,
   SpecimenData,
+  ProduceDefect,
 } from '../services/geminiNutrition';
 import { getFruitRealImage } from '../utils/fruitImages';
 import { FreshGuardLogo } from '../components/FreshGuardLogo';
@@ -190,6 +191,7 @@ export default function NutritionScannerPage() {
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [capturedImagePreview, setCapturedImagePreview] = useState<string | null>(null);
+  const [expandedDefectIndex, setExpandedDefectIndex] = useState<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -287,29 +289,43 @@ export default function NutritionScannerPage() {
 
   const runAiImageAnalysis = async (fileOrDataUrl: File | string) => {
     setIsScanning(true);
-    setScanStepText('Acquiring optical morphology & pigment spectrum...');
+    setScanStepText('Acquiring optical morphology & surface pigment spectrum...');
 
     const stepTimer1 = setTimeout(() => {
-      setScanStepText('Analyzing specimen morphology & USDA Clinical FoodData...');
+      setScanStepText('Detecting blemishes, dark spots & degradation zones...');
     }, 700);
 
     const stepTimer2 = setTimeout(() => {
-      setScanStepText('Synthesizing respiration kinetics & chamber targets...');
+      setScanStepText('Computing defect-adjusted nutrient profile & quality grade...');
     }, 1500);
+
+    const stepTimer3 = setTimeout(() => {
+      setScanStepText('Rendering defect overlay & synthesising chamber targets...');
+    }, 2800);
 
     try {
       const result = await analyzeProduceImage(fileOrDataUrl, searchQuery || undefined);
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
+      clearTimeout(stepTimer3);
+      // Show annotated image in viewfinder if defects were found
+      if (result.annotatedImageUrl) {
+        setCapturedImagePreview(result.annotatedImageUrl);
+      }
 
       // Prepend or update list
       setSpecimens((prev) => [result, ...prev.filter((p) => p.name.toLowerCase() !== result.name.toLowerCase())]);
       setSelectedSpecimen(result);
       setPortionMultiplier(1);
-      setToastMessage(`Botanical AI identified ${result.name} (${result.freshnessScore}% Freshness Index)!`);
+      setExpandedDefectIndex(null);
+
+      const defectCount = result.defects?.length ?? 0;
+      const defectSuffix = defectCount > 0 ? ` · ${defectCount} defect${defectCount > 1 ? 's' : ''} detected` : ' · No surface defects';
+      setToastMessage(`Botanical AI identified ${result.name} (${result.freshnessScore}% Freshness, Grade ${result.qualityGrade ?? 'N/A'}${defectSuffix})`);
     } catch (err: any) {
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
+      clearTimeout(stepTimer3);
       setToastMessage(`Analysis error: ${err.message}. Loaded calibrated horticultural profile.`);
     } finally {
       setIsScanning(false);
@@ -348,7 +364,9 @@ export default function NutritionScannerPage() {
   const handleSpecimenSelect = (specimen: SpecimenData) => {
     setSelectedSpecimen(specimen);
     setPortionMultiplier(1);
-    setCapturedImagePreview(specimen.imageUrl || null);
+    setExpandedDefectIndex(null);
+    // Show annotated image if available, else fall back to plain image
+    setCapturedImagePreview(specimen.annotatedImageUrl || specimen.imageUrl || null);
   };
 
   const handleStoreInVault = async () => {
@@ -541,7 +559,7 @@ export default function NutritionScannerPage() {
             <img
               src={capturedImagePreview}
               alt={selectedSpecimen.name}
-              className="w-full h-full object-cover opacity-90 transition-transform duration-700 hover:scale-105"
+              className="w-full h-full object-cover opacity-95 transition-transform duration-700 hover:scale-105"
             />
           ) : (
             <img
@@ -551,6 +569,19 @@ export default function NutritionScannerPage() {
             />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/60 pointer-events-none" />
+          {/* Defect Overlay Legend */}
+          {(selectedSpecimen.defects?.length ?? 0) > 0 && capturedImagePreview && !isCameraActive && (
+            <div className="absolute top-3 left-3 z-20 flex flex-col gap-1">
+              <div className="bg-black/70 backdrop-blur-sm px-2.5 py-1.5 rounded-xl text-[10px] font-bold text-white border border-white/20 flex items-center gap-1.5">
+                <span className="text-amber-400">⚠</span> Defect map active
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-1 text-[9px] text-white/80"><span className="w-2.5 h-0.5 bg-yellow-400 rounded-full inline-block"></span>Minor</div>
+                <div className="flex items-center gap-1 text-[9px] text-white/80"><span className="w-2.5 h-0.5 bg-orange-500 rounded-full inline-block"></span>Moderate</div>
+                <div className="flex items-center gap-1 text-[9px] text-white/80"><span className="w-2.5 h-0.5 bg-red-500 rounded-full inline-block"></span>Severe</div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Laser Scanning Line */}
@@ -666,14 +697,24 @@ export default function NutritionScannerPage() {
             </p>
           </div>
 
-          {/* Freshness Badge */}
+          {/* Freshness + Quality Badge */}
           <div className="bg-white/95 backdrop-blur-md text-[#1e241c] p-2.5 sm:p-3 rounded-2xl border border-white/30 flex items-center gap-3 shadow-lg self-start sm:self-auto">
             <div className="w-11 h-11 rounded-xl bg-[#e8f3e5] flex flex-col items-center justify-center text-[#3b6b32] font-black leading-none">
               <span className="text-base">{selectedSpecimen.freshnessScore}%</span>
               <span className="text-[8px] uppercase tracking-tighter text-[#3b6b32]/80 mt-0.5">Index</span>
             </div>
             <div>
-              <p className="text-[10px] uppercase font-bold text-[#596155] leading-none">Freshness Rating</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] uppercase font-bold text-[#596155] leading-none">Freshness Rating</p>
+                {selectedSpecimen.qualityGrade && (
+                  <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md ${
+                    selectedSpecimen.qualityGrade === 'A' ? 'bg-emerald-100 text-emerald-700' :
+                    selectedSpecimen.qualityGrade === 'B' ? 'bg-lime-100 text-lime-700' :
+                    selectedSpecimen.qualityGrade === 'C' ? 'bg-amber-100 text-amber-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>Grade {selectedSpecimen.qualityGrade}</span>
+                )}
+              </div>
               <p className="text-xs font-bold text-[#1e241c] mt-0.5 max-w-[180px] truncate">
                 {selectedSpecimen.ripeness}
               </p>
@@ -904,6 +945,120 @@ export default function NutritionScannerPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Consumer Safety Banner ── */}
+        {selectedSpecimen.consumerSafetyNote && (
+          <div className={`flex items-start gap-2.5 p-3.5 rounded-2xl border text-xs font-semibold ${
+            selectedSpecimen.qualityGrade === 'D'
+              ? 'bg-red-50 border-red-200 text-red-800'
+              : selectedSpecimen.qualityGrade === 'C'
+              ? 'bg-amber-50 border-amber-200 text-amber-800'
+              : 'bg-[#e8f3e5] border-[#bcdcb3] text-[#1b3e15]'
+          }`}>
+            <span className="material-symbols-outlined text-base shrink-0 mt-0.5">
+              {selectedSpecimen.qualityGrade === 'D' ? 'dangerous' : selectedSpecimen.qualityGrade === 'C' ? 'warning' : 'health_and_safety'}
+            </span>
+            <div>
+              <p className="font-bold mb-0.5">Consumer Safety Assessment</p>
+              <p className="font-normal leading-relaxed">{selectedSpecimen.consumerSafetyNote}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Defect Detection Panel ── */}
+        {(selectedSpecimen.defects?.length ?? 0) > 0 && (
+          <div className="p-4 rounded-2xl bg-[#fff8f2] border border-[#fbd3b9] space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-base text-[#e66a26]">search_insights</span>
+                <span className="text-xs font-bold text-[#7c2d00]">Surface Defect Detection ({selectedSpecimen.defects!.length} found)</span>
+              </div>
+              <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
+                selectedSpecimen.qualityGrade === 'A' ? 'bg-emerald-100 text-emerald-700' :
+                selectedSpecimen.qualityGrade === 'B' ? 'bg-lime-100 text-lime-700' :
+                selectedSpecimen.qualityGrade === 'C' ? 'bg-amber-100 text-amber-700' :
+                'bg-red-100 text-red-700'
+              }`}>Quality Grade {selectedSpecimen.qualityGrade}</span>
+            </div>
+
+            <div className="space-y-2">
+              {selectedSpecimen.defects!.map((defect: ProduceDefect, idx: number) => (
+                <div
+                  key={idx}
+                  className="bg-white rounded-xl border border-[#fbd3b9]/60 overflow-hidden"
+                >
+                  {/* Defect header row */}
+                  <button
+                    onClick={() => setExpandedDefectIndex(expandedDefectIndex === idx ? null : idx)}
+                    className="w-full flex items-center justify-between px-3.5 py-2.5 text-left cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                        defect.severity === 'Severe' ? 'bg-red-500' :
+                        defect.severity === 'Moderate' ? 'bg-orange-400' : 'bg-yellow-400'
+                      }`} />
+                      <span className="text-xs font-bold text-[#1e241c]">{defect.type}</span>
+                      <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md ${
+                        defect.severity === 'Severe' ? 'bg-red-100 text-red-700' :
+                        defect.severity === 'Moderate' ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'
+                      }`}>{defect.severity}</span>
+                    </div>
+                    <span className="material-symbols-outlined text-sm text-[#778073] transition-transform" style={{ transform: expandedDefectIndex === idx ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+                  </button>
+
+                  {/* Expanded content */}
+                  {expandedDefectIndex === idx && (
+                    <div className="px-3.5 pb-3 space-y-2.5 border-t border-[#fbd3b9]/40">
+                      <p className="text-[11px] text-[#596155] leading-relaxed pt-2">{defect.description}</p>
+
+                      {defect.nutrientImpact.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-[#7c2d00]">Nutrient Impact from this Defect</p>
+                          {defect.nutrientImpact.map((impact, nIdx) => (
+                            <div key={nIdx} className="flex items-start gap-2 bg-[#fff8f2] rounded-lg px-2.5 py-1.5">
+                              <span className={`text-base shrink-0 ${
+                                impact.changeDirection === 'decrease' ? 'text-red-500' : 'text-emerald-500'
+                              }`}>
+                                {impact.changeDirection === 'decrease' ? '↓' : '↑'}
+                              </span>
+                              <div>
+                                <span className="text-[11px] font-bold text-[#1e241c]">
+                                  {impact.nutrient}
+                                </span>
+                                <span className={`ml-1.5 text-[10px] font-extrabold ${
+                                  impact.changeDirection === 'decrease' ? 'text-red-600' : 'text-emerald-600'
+                                }`}>
+                                  {impact.changeDirection === 'decrease' ? '−' : '+'}{impact.changePct}%
+                                </span>
+                                <p className="text-[10px] text-[#778073] mt-0.5 leading-snug">{impact.reason}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Overall Nutrient Impact Summary */}
+            {selectedSpecimen.overallNutrientImpactSummary && (
+              <div className="flex items-start gap-2 text-xs text-[#7c2d00] bg-[#fff0e6] px-3.5 py-2.5 rounded-xl border border-[#fbd3b9]/60">
+                <span className="material-symbols-outlined text-sm shrink-0 mt-0.5 text-[#e66a26]">science</span>
+                <p className="leading-relaxed">{selectedSpecimen.overallNutrientImpactSummary}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Clean produce confirmation */}
+        {selectedSpecimen.source !== 'preset' && (selectedSpecimen.defects?.length ?? 0) === 0 && selectedSpecimen.freshnessScore >= 85 && (
+          <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl bg-[#e8f3e5] border border-[#bcdcb3] text-xs text-[#1b3e15] font-semibold">
+            <span className="material-symbols-outlined text-base text-[#3b6b32]">check_circle</span>
+            <span>No surface defects detected — nutrient values represent peak USDA calibrated composition for this cultivar.</span>
+          </div>
+        )}
 
         {/* Post-Harvest AI Physiology Notes */}
         {selectedSpecimen.aiAnalysisNotes && (
